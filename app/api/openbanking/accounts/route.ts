@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 
-// 사용자 등록 계좌 목록 조회 (Mock)
+// 사용자 등록 계좌 목록 조회 (실제 KFTC 연동)
 // GET /api/openbanking/accounts?user_seq_no=xxx
 // Headers: Authorization: Bearer {token}
 export async function GET(req: NextRequest) {
@@ -22,53 +23,36 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // TODO: Replace mock with actual OpenBanking API call
-  // 실제 구현 시:
-  // const baseUrl = process.env.OPENBANKING_BASE_URL;
-  // const token = authHeader.replace("Bearer ", "");
-  // const response = await axios.get(`${baseUrl}/v2.0/account/list`, {
-  //   headers: { Authorization: `Bearer ${token}` },
-  //   params: { user_seq_no: userSeqNo, include_cancel_yn: "N", sort_order: "D" },
-  // });
+  try {
+    // KFTC 테스트 서버 주소
+    const baseUrl = process.env.OPENBANKING_BASE_URL;
+    
+    // "Bearer " 글자를 떼어내고 순수 토큰 문자열만 추출
+    const token = authHeader.replace("Bearer ", "");
 
-  return NextResponse.json({
-    api_tran_id: `mock-${Date.now()}`,
-    rsp_code: "A0000",
-    rsp_message: "성공",
-    api_tran_dtm: new Date().toISOString().replace(/[-T:.Z]/g, "").slice(0, 14),
-    user_seq_no: userSeqNo,
-    res_cnt: 3,
-    account_list: [
-      {
-        fintech_use_num: "100000000001",
-        account_alias: "급여통장",
-        bank_name: "한국은행",
-        account_num_masked: "110-***-****01",
-        account_holder_name: "홍길동",
-        account_type: "1",
-        inquiry_agree_yn: "Y",
-        transfer_agree_yn: "Y",
+    // KFTC 계좌조회 API 호출!
+    const response = await axios.get(`${baseUrl}/v2.0/account/list`, {
+      headers: { 
+        Authorization: `Bearer ${token}` 
       },
-      {
-        fintech_use_num: "100000000002",
-        account_alias: "저축예금",
-        bank_name: "신한은행",
-        account_num_masked: "220-***-****02",
-        account_holder_name: "홍길동",
-        account_type: "1",
-        inquiry_agree_yn: "Y",
-        transfer_agree_yn: "Y",
+      params: { 
+        user_seq_no: userSeqNo, 
+        include_cancel_yn: "N", // 해지된 계좌 포함 여부 (N: 포함 안함)
+        sort_order: "D"         // 정렬 순서 (D: 최근 등록순)
       },
-      {
-        fintech_use_num: "100000000003",
-        account_alias: "생활비통장",
-        bank_name: "국민은행",
-        account_num_masked: "330-***-****03",
-        account_holder_name: "홍길동",
-        account_type: "1",
-        inquiry_agree_yn: "Y",
-        transfer_agree_yn: "N",
+    });
+
+    // KFTC가 준 진짜 계좌 목록을 앱으로 그대로 전달
+    return NextResponse.json(response.data);
+
+  } catch (error: any) {
+    console.error("KFTC 계좌 조회 에러:", error.response?.data || error.message);
+    return NextResponse.json(
+      { 
+        error: "계좌 조회에 실패했습니다.", 
+        details: error.response?.data 
       },
-    ],
-  });
+      { status: error.response?.status || 500 }
+    );
+  }
 }
