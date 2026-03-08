@@ -12,14 +12,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'email와 fcmToken이 필요합니다.' }, { status: 400 });
     }
 
-    // 2. Firestore 데이터베이스의 'users' 컬렉션에 토큰을 저장합니다.
-    // users -> [email] 문서 안에 fcmToken을 업데이트(또는 생성)합니다.
+    // 2. 같은 fcmToken을 가진 다른 유저 문서가 있으면 삭제합니다.
+    // (같은 기기에서 새 계정으로 가입한 경우, 이전 계정의 토큰을 정리)
+    const existingDocs = await db.collection('users')
+      .where('fcmToken', '==', fcmToken)
+      .get();
+
+    const batch = db.batch();
+    existingDocs.forEach((doc) => {
+      if (doc.id !== email) {
+        batch.delete(doc.ref);
+      }
+    });
+    await batch.commit();
+
+    // 3. Firestore 데이터베이스의 'users' 컬렉션에 토큰을 저장합니다.
     await db.collection('users').doc(email).set(
-      { 
+      {
         fcmToken: fcmToken,
-        updatedAt: new Date().toISOString() 
+        updatedAt: new Date().toISOString()
       },
-      { merge: true } // 기존 유저 데이터가 있다면 덮어쓰지 않고 합칩니다(유지합니다).
+      { merge: true }
     );
 
     // 3. 성공 응답 보내기
