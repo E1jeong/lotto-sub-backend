@@ -23,7 +23,7 @@ jobs:
             git pull origin master
             npm install --production=false
             npm run build
-            pm2 restart lotto-backend || pm2 start npm --name "lotto-backend" -- start
+            pm2 restart lotto-sub-backend
 
       - name: Notify success
         if: success()
