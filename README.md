@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# lotto-sub-backend
 
-## Getting Started
+fisherlotto Android 앱의 서브 백엔드 서버.
+Next.js App Router 기반 API 서버로, Gabia 클라우드에서 PM2로 운영된다.
 
-First, run the development server:
+## 기술 스택
+
+- **Runtime**: Node.js + Next.js App Router (API only)
+- **DB**: MySQL (mysql2)
+- **Push**: Firebase Cloud Messaging (Firebase Admin SDK)
+- **결제 검증**: Google Play Developer API
+
+## 실행
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev     # 개발 서버 (port 3000)
+npm run build   # 프로덕션 빌드
+npm start       # 프로덕션 서버
+npm run lint    # ESLint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 환경변수 (.env.local)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+# MySQL
+MYSQL_HOST=
+MYSQL_PORT=3306
+MYSQL_USER=
+MYSQL_PASSWORD=
+MYSQL_DATABASE=
+MYSQL_CONNECTION_LIMIT=10
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Firebase
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
 
-## Learn More
+# FCM
+FCM_SEND_API_KEY=
+```
 
-To learn more about Next.js, take a look at the following resources:
+## API 엔드포인트
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 유저
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Method | Path | 설명 | 비고 |
+|--------|------|------|------|
+| POST | `/api/users/register` | 유저 등록 | `{ name, email, phone, birth }` |
+| POST | `/api/users/login` | 로그인 / 유저 조회 | `{ email, phone }` |
+| GET | `/api/users` | 유저 조회 (내부용) | `?email=xxx` |
+| POST | `/api/users/tier` | tier 변경 | `{ email, phone, isPremium: boolean }` |
+| POST | `/api/users/withdraw` | 회원탈퇴 | `{ email, phone }` — hard delete |
 
-## Deploy on Vercel
+### 로또
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Method | Path | 설명 | 비고 |
+|--------|------|------|------|
+| GET | `/api/lotto/winning` | 당첨 번호 조회 | `?round=1100` |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### FCM
+
+| Method | Path | 설명 | 비고 |
+|--------|------|------|------|
+| POST | `/api/fcm/token` | FCM 토큰 등록 | `{ email, fcmToken }` |
+| DELETE | `/api/fcm/user` | FCM 토큰 삭제 | `{ email }` |
+| POST | `/api/fcm/send` | 전체 푸시 발송 | `{ title, body }` + `x-api-key` 헤더 필요 |
+
+### 결제
+
+| Method | Path | 설명 | 비고 |
+|--------|------|------|------|
+| POST | `/api/billing/receipt` | Google Play 영수증 저장 | `{ orderId, productId, purchaseToken, purchaseTime, autoRenewing, email }` |
+| POST | `/api/billing/subscription` | 구독 상태 조회 | `{ purchaseToken, productId }` |
+
+## 응답 코드
+
+| 코드 | 설명 |
+|------|------|
+| 8200 | 성공 |
+| 8404 | 데이터 없음 |
+| 8611 | 이메일 중복 |
+| 8633 | 전화번호 중복 |
+| 8655 | 서버/DB 오류 |
+| 8677 | 요청 필드 오류 |
+| 8699 | 유저 정보 없음 |
+
+## DB 테이블
+
+- `T_USER_INFO` — 유저 정보 (`tier`: 0=FREE, 1=PREMIUM)
+- `T_PURCHASES` — Google Play 구독 영수증
+- `T_WINNER_NUM` — 로또 회차별 당첨 번호
+
+자세한 마이그레이션 내용은 [docs/MIGRATION.md](docs/MIGRATION.md) 참고.
