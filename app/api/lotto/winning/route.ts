@@ -11,10 +11,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ status: '8677' });
     }
 
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      'SELECT * FROM T_WINNER_NUM WHERE lotto_round = ? LIMIT 1',
-      [round]
-    );
+    const query = Number(round) === 0
+      ? 'SELECT * FROM T_WINNER_NUM ORDER BY lotto_round DESC LIMIT 1'
+      : 'SELECT * FROM T_WINNER_NUM WHERE lotto_round = ? LIMIT 1';
+    const params = Number(round) === 0 ? [] : [round];
+
+    const [rows] = await pool.execute<RowDataPacket[]>(query, params);
 
     if (rows.length === 0) {
       return NextResponse.json({ status: '8404' });
