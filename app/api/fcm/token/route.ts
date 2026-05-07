@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { ResultSetHeader } from 'mysql2';
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     );
 
     // 해당 유저의 토큰 저장
-    const [result] = await pool.execute<import('mysql2').ResultSetHeader>(
+    const [result] = await pool.execute<ResultSetHeader>(
       'UPDATE T_USER_INFO SET fcm_token = ? WHERE email = ?',
       [fcmToken, email]
     );
