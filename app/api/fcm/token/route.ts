@@ -17,10 +17,14 @@ export async function POST(request: Request) {
     );
 
     // 해당 유저의 토큰 저장
-    await pool.execute(
+    const [result] = await pool.execute<import('mysql2').ResultSetHeader>(
       'UPDATE T_USER_INFO SET fcm_token = ? WHERE email = ?',
       [fcmToken, email]
     );
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ error: '해당 이메일의 유저를 찾을 수 없습니다.' }, { status: 404 });
+    }
 
     return NextResponse.json({ message: '토큰이 성공적으로 저장되었습니다.' }, { status: 200 });
   } catch (error) {
