@@ -1,5 +1,6 @@
 // lib/googlePlayApi.ts
 import { google } from 'googleapis';
+import type { Pool } from 'mysql2/promise';
 
 // Firebase Admin과 동일한 서비스 계정 재사용
 const auth = new google.auth.GoogleAuth({
@@ -37,4 +38,32 @@ export async function getSubscriptionDetails(
     autoRenewing: subscription.subscriptionState === 'SUBSCRIPTION_STATE_ACTIVE'
       && (lineItem?.autoRenewingPlan !== undefined),
   };
+}
+
+export async function updateUserTierByToken(
+  purchaseToken: string,
+  pool: Pool,
+  tier: 0 | 1,
+): Promise<void> {
+  const [rows] = await pool.execute<import('mysql2').RowDataPacket[]>(
+    'SELECT email FROM T_PURCHASES WHERE purchase_token = ? LIMIT 1',
+    [purchaseToken],
+  );
+
+  const email = rows[0]?.email as string | undefined;
+  if (!email) return;
+
+  if (tier === 1) {
+    const { expiryTimeMillis } = await getSubscriptionDetails(purchaseToken);
+    if (!expiryTimeMillis) return;
+    await pool.execute(
+      'UPDATE T_USER_INFO SET tier = 1, valid_date = DATE(FROM_UNIXTIME(? / 1000)) WHERE email = ?',
+      [expiryTimeMillis, email],
+    );
+  } else {
+    await pool.execute(
+      'UPDATE T_USER_INFO SET tier = 0, valid_date = CURDATE() WHERE email = ?',
+      [email],
+    );
+  }
 }
