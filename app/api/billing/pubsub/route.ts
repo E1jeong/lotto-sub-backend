@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { updateUserTierByToken } from '@/lib/googlePlayApi';
+import { admin } from '@/lib/firebaseAdmin';
+import type { RowDataPacket } from 'mysql2';
 
 interface SubscriptionNotification {
   version: string;
@@ -36,6 +38,26 @@ const NOTIFICATION_TYPE = {
   REVOKED: 12,
   EXPIRED: 13,
 } as const;
+
+async function sendFcmToUser(email: string, title: string, body: string) {
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT fcm_token FROM T_USER_INFO WHERE email = ?',
+      [email]
+    );
+    const token = rows[0]?.fcm_token;
+    if (!token) return;
+
+    await admin.messaging().send({
+      token,
+      notification: { title, body },
+      data: { type: 'SUBSCRIPTION_UPDATE' },
+    });
+    console.log(`[pubsub] FCM 발송 성공: ${email}`);
+  } catch (error) {
+    console.error(`[pubsub] FCM 발송 실패 (${email}):`, error);
+  }
+}
 
 export async function POST(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
@@ -76,16 +98,24 @@ export async function POST(req: NextRequest) {
     switch (notificationType) {
       case NOTIFICATION_TYPE.RECOVERED:
       case NOTIFICATION_TYPE.RENEWED:
-      case NOTIFICATION_TYPE.IN_GRACE_PERIOD:
-        await updateUserTierByToken(purchaseToken, pool, 1);
+      case NOTIFICATION_TYPE.IN_GRACE_PERIOD: {
+        const email = await updateUserTierByToken(purchaseToken, pool, 1);
         console.log(`[pubsub] tier=1 업데이트 완료 (type=${notificationType})`);
+        if (email) {
+          await sendFcmToUser(email, '구독 상태 안내', '구독이 정상적으로 갱신 또는 유지되었습니다.');
+        }
         break;
+      }
 
       case NOTIFICATION_TYPE.REVOKED:
-      case NOTIFICATION_TYPE.EXPIRED:
-        await updateUserTierByToken(purchaseToken, pool, 0);
+      case NOTIFICATION_TYPE.EXPIRED: {
+        const email = await updateUserTierByToken(purchaseToken, pool, 0);
         console.log(`[pubsub] tier=0 업데이트 완료 (type=${notificationType})`);
+        if (email) {
+          await sendFcmToUser(email, '구독 만료 안내', '구독이 만료되어 기본 혜택으로 전환되었습니다.');
+        }
         break;
+      }
 
       case NOTIFICATION_TYPE.CANCELED:
         // 취소는 만료일까지 유효 — 별도 처리 없음
