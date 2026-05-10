@@ -127,8 +127,8 @@ export async function POST(req: NextRequest) {
     }
   } catch (e) {
     console.error('[pubsub] DB 업데이트 오류:', e);
-    // Pub/Sub은 200 외 응답 시 재시도하므로 500 반환
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    // 500 반환 시 Google이 무한 재시도 → 비즈니스 오류는 200으로 ack
+    return NextResponse.json({ ok: true, error: 'DB update failed' }, { status: 200 });
   }
 
   return NextResponse.json({ ok: true });
