@@ -8,7 +8,15 @@ interface SubscriptionQueryRequest {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: SubscriptionQueryRequest = await req.json();
+    let body: SubscriptionQueryRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, message: '잘못된 요청 형식입니다.' },
+        { status: 400 }
+      );
+    }
 
     const { purchaseToken } = body;
 

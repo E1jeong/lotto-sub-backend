@@ -14,12 +14,27 @@ interface ReceiptRequest {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: ReceiptRequest = await req.json();
+    let body: ReceiptRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, message: '잘못된 요청 형식입니다.' },
+        { status: 400 }
+      );
+    }
     const { orderId, productId, purchaseToken, purchaseTime, autoRenewing, email } = body;
 
     if (!orderId || !productId || !purchaseToken) {
       return NextResponse.json(
         { success: false, message: 'orderId, productId, purchaseToken은 필수입니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (!email) {
+      return NextResponse.json(
+        { success: false, message: '이메일 정보가 필요합니다.' },
         { status: 400 }
       );
     }
