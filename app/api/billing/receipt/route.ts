@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getSubscriptionDetails } from '@/lib/googlePlayApi';
+import type { RowDataPacket } from 'mysql2';
 
 interface ReceiptRequest {
   orderId: string;
@@ -23,6 +24,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // orderId 기준 중복 여부 확인
+    const [existingRows] = await pool.execute<RowDataPacket[]>(
+      'SELECT purchase_token FROM T_PURCHASES WHERE order_id = ? LIMIT 1',
+      [orderId]
+    );
+
+    if (existingRows.length > 0) {
+      return NextResponse.json({ success: true, message: '이미 처리된 영수증입니다.' });
+    }
+
     // T_PURCHASES 저장 (INSERT IGNORE: 중복 orderId는 무시)
     await pool.execute(
       `INSERT IGNORE INTO T_PURCHASES
@@ -37,7 +48,11 @@ export async function POST(req: NextRequest) {
       const subscriptionDetails = await getSubscriptionDetails(purchaseToken);
       expiryTimeMillis = subscriptionDetails.expiryTimeMillis;
     } catch (e) {
-      console.error('Google Play API 조회 실패 (영수증 저장은 정상 완료):', e);
+      console.error('Google Play API 검증 실패:', e);
+      return NextResponse.json(
+        { success: false, message: 'Google Play 영수증 검증에 실패했습니다.' },
+        { status: 400 }
+      );
     }
 
     // T_USER_INFO tier/valid_date 업데이트
