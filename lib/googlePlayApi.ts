@@ -19,6 +19,8 @@ const packageName = process.env.GOOGLE_PLAY_PACKAGE_NAME || 'com.queentech.fishe
 export interface SubscriptionDetails {
   expiryTimeMillis: number | null;
   autoRenewing: boolean;
+  cancelAtPeriodEnd: boolean;
+  isOnHold: boolean;
 }
 
 export async function getSubscriptionDetails(
@@ -37,6 +39,8 @@ export async function getSubscriptionDetails(
     expiryTimeMillis: expiryTime ? new Date(expiryTime).getTime() : null,
     autoRenewing: subscription.subscriptionState === 'SUBSCRIPTION_STATE_ACTIVE'
       && (lineItem?.autoRenewingPlan !== undefined),
+    cancelAtPeriodEnd: subscription.subscriptionState === 'SUBSCRIPTION_STATE_CANCELED',
+    isOnHold: subscription.subscriptionState === 'SUBSCRIPTION_STATE_ON_HOLD',
   };
 }
 
@@ -44,18 +48,18 @@ export async function updateUserTierByToken(
   purchaseToken: string,
   pool: Pool,
   tier: 0 | 1,
-): Promise<void> {
+): Promise<string | null> {
   const [rows] = await pool.execute<import('mysql2').RowDataPacket[]>(
     'SELECT email FROM T_PURCHASES WHERE purchase_token = ? LIMIT 1',
     [purchaseToken],
   );
 
   const email = rows[0]?.email as string | undefined;
-  if (!email) return;
+  if (!email) return null;
 
   if (tier === 1) {
     const { expiryTimeMillis } = await getSubscriptionDetails(purchaseToken);
-    if (!expiryTimeMillis) return;
+    if (!expiryTimeMillis) return null;
     await pool.execute(
       'UPDATE T_USER_INFO SET tier = 1, valid_date = DATE(FROM_UNIXTIME(? / 1000)) WHERE email = ?',
       [expiryTimeMillis, email],
@@ -66,4 +70,6 @@ export async function updateUserTierByToken(
       [email],
     );
   }
+
+  return email;
 }
