@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
       success: true,
       expiryTimeMillis: details.expiryTimeMillis,
       autoRenewing: details.autoRenewing,
+      cancelAtPeriodEnd: details.cancelAtPeriodEnd,
+      isOnHold: details.isOnHold,
     });
   } catch (error) {
     console.error('구독 상태 조회 오류:', error);
