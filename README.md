@@ -37,6 +37,10 @@ FIREBASE_PRIVATE_KEY=
 
 # FCM
 FCM_SEND_API_KEY=
+
+# 결제 & Pub/Sub
+PUBSUB_SECRET_TOKEN=
+GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 ```
 
 ## API 엔드포인트
@@ -56,6 +60,7 @@ FCM_SEND_API_KEY=
 | Method | Path | 설명 | 비고 |
 |--------|------|------|------|
 | GET | `/api/lotto/winning` | 당첨 번호 조회 | `?round=1100` |
+| POST | `/api/lotto/expect` | 예상 번호 조회 | `{ email, phone }` |
 
 ### FCM
 
@@ -71,6 +76,7 @@ FCM_SEND_API_KEY=
 |--------|------|------|------|
 | POST | `/api/billing/receipt` | Google Play 영수증 저장 | `{ orderId, productId, purchaseToken, purchaseTime, autoRenewing, email }` |
 | POST | `/api/billing/subscription` | 구독 상태 조회 | `{ purchaseToken, productId }` |
+| POST | `/api/billing/pubsub` | RTDN Pub/Sub 수신 웹훅 | `?token=PUBSUB_SECRET_TOKEN` |
 
 ## 응답 코드
 
