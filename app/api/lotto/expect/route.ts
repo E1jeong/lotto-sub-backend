@@ -21,12 +21,12 @@ export async function POST(req: NextRequest) {
     }
 
     const r = rows[0];
+    const pickExpect = JSON.parse(r.pick_expect);
+
     return NextResponse.json({
       status: '8200',
-      lottoRound: r.lotto_round,
-      pickDate: r.pick_date,
-      pickCount: r.pick_count,
-      pickExpect: r.pick_expect,
+      count: pickExpect.count,
+      lotto: pickExpect.lotto,
     });
   } catch (error) {
     console.error('예상번호 조회 에러:', error);
