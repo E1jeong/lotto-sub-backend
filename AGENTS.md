@@ -72,3 +72,7 @@ There is currently no dedicated `npm test` script. If tests are added later, upd
 - The user's global `~/.gemini/GEMINI.md` already covers general working behavior; keep this repo's project-specific rules in `AGENTS.md` and `docs/`.
 - Record long-lived product scope in `docs/PRD.md`, architecture in `docs/ARCHITECTURE.md`, and decisions in `docs/ADR.md`.
 - Do not store completed task logs or temporary plans in `AGENTS.md`; use short-lived chat/task artifacts instead.
+
+## Wiki Sync
+
+This project has a maintained Obsidian LLM wiki (`Project/Personal/Fisher Lotto`, shared with the `FisherLotto` app repo) tracking feature status, unimplemented plans, and a per-session `핸드오프.md` handoff. When the user asks to sync, check, or update the wiki, use the `obsidian-sync` skill (`.claude/skills/obsidian-sync/SKILL.md`) rather than guessing paths.
