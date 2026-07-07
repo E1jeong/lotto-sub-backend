@@ -3,6 +3,8 @@ import pool from '@/lib/db';
 import { getSubscriptionDetails } from '@/lib/googlePlayApi';
 import type { RowDataPacket } from 'mysql2';
 
+const ALLOWED_PRODUCT_IDS = ['fisherlotto_monthly'];
+
 interface ReceiptRequest {
   orderId: string;
   productId: string;
@@ -39,6 +41,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!ALLOWED_PRODUCT_IDS.includes(productId)) {
+      return NextResponse.json(
+        { success: false, message: `허용되지 않은 productId입니다: ${productId}` },
+        { status: 400 }
+      );
+    }
+
     // orderId 기준 중복 여부 확인
     const [existingRows] = await pool.execute<RowDataPacket[]>(
       'SELECT purchase_token FROM T_PURCHASES WHERE order_id = ? LIMIT 1',
@@ -48,14 +57,6 @@ export async function POST(req: NextRequest) {
     if (existingRows.length > 0) {
       return NextResponse.json({ success: true, message: '이미 처리된 영수증입니다.' });
     }
-
-    // T_PURCHASES 저장 (INSERT IGNORE: 중복 orderId는 무시)
-    await pool.execute(
-      `INSERT IGNORE INTO T_PURCHASES
-         (order_id, product_id, purchase_token, purchase_time, auto_renewing, email)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [orderId, productId, purchaseToken, purchaseTime, autoRenewing ? 1 : 0, email ?? null]
-    );
 
     // Google Play Developer API로 정확한 구독 만료일 조회
     let expiryTimeMillis: number | null = null;
@@ -70,14 +71,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // T_USER_INFO tier/valid_date 업데이트
-    if (email && expiryTimeMillis) {
-      await pool.execute(
-        `UPDATE T_USER_INFO
-         SET tier = 1, valid_date = DATE(FROM_UNIXTIME(? / 1000))
-         WHERE email = ?`,
-        [expiryTimeMillis, email]
+    // T_PURCHASES 저장 + T_USER_INFO tier/valid_date 업데이트를 하나의 트랜잭션으로 처리
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // T_PURCHASES 저장 (INSERT IGNORE: 중복 orderId는 무시)
+      await connection.execute(
+        `INSERT IGNORE INTO T_PURCHASES
+           (order_id, product_id, purchase_token, purchase_time, auto_renewing, email)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [orderId, productId, purchaseToken, purchaseTime, autoRenewing ? 1 : 0, email ?? null]
       );
+
+      if (expiryTimeMillis) {
+        await connection.execute(
+          `UPDATE T_USER_INFO
+           SET tier = 1, valid_date = DATE(FROM_UNIXTIME(? / 1000))
+           WHERE email = ?`,
+          [expiryTimeMillis, email]
+        );
+      }
+
+      await connection.commit();
+    } catch (e) {
+      await connection.rollback();
+      throw e;
+    } finally {
+      connection.release();
     }
 
     return NextResponse.json({ success: true, message: '영수증이 저장되었습니다.', expiryTimeMillis });

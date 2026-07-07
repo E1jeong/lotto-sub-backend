@@ -65,6 +65,17 @@ export async function updateUserTierByToken(
       [expiryTimeMillis, email],
     );
   } else {
+    // 이 email의 가장 최근 구매 건이 아니라면(이미 새 토큰으로 재구독한 경우)
+    // 옛 토큰의 REVOKED/EXPIRED 알림으로 최신 구독을 강등시키지 않는다.
+    const [latestRows] = await pool.execute<import('mysql2').RowDataPacket[]>(
+      'SELECT purchase_token FROM T_PURCHASES WHERE email = ? ORDER BY purchase_time DESC LIMIT 1',
+      [email],
+    );
+    const latestToken = latestRows[0]?.purchase_token as string | undefined;
+    if (latestToken && latestToken !== purchaseToken) {
+      return null;
+    }
+
     await pool.execute(
       'UPDATE T_USER_INFO SET tier = 0, valid_date = CURDATE() WHERE email = ?',
       [email],
