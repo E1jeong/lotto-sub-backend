@@ -29,6 +29,7 @@ The architecture should stay small and explicit. Route handlers expose the API c
 │   │   │   └── user/route.ts           # User FCM token removal
 │   │   ├── lotto/
 │   │   │   ├── expect/route.ts         # Premium lotto expectation endpoint
+│   │   │   ├── stats/route.ts          # Per-round grade/combination count stats endpoint
 │   │   │   └── winning/route.ts        # Lotto winning number endpoint
 │   │   └── users/
 │   │       ├── route.ts                # User lookup

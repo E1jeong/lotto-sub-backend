@@ -61,6 +61,7 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 |--------|------|------|------|
 | GET | `/api/lotto/winning` | 당첨 번호 조회 | `?round=1100` |
 | POST | `/api/lotto/expect` | 예상 번호 조회 | `{ email, phone }` |
+| GET | `/api/lotto/stats` | 회차별 등수 조합 통계 조회 | `?round=1100` (0=최신) |
 
 ### FCM
 
@@ -95,5 +96,6 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 - `T_USER_INFO` — 유저 정보 (`tier`: 0=FREE, 1=PREMIUM)
 - `T_PURCHASES` — Google Play 구독 영수증
 - `T_WINNER_NUM` — 로또 회차별 당첨 번호
+- `T_RESULT_COMBI` — 로또 회차별 등수(1~5등) 당첨 조합 개수 및 전체 조합 개수(`combi_count`)
 
 자세한 마이그레이션 내용은 [docs/MIGRATION.md](docs/MIGRATION.md) 참고.
