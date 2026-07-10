@@ -16,11 +16,13 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
+          script_stop: true
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             cd /home/e1jeong/lotto-sub-backend
-            git pull origin master
+            git fetch origin master
+            git reset --hard origin/master
             npm install --production=false
             npm run build
             pm2 restart lotto-sub-backend
