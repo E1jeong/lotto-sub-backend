@@ -21,8 +21,11 @@ export async function POST(req: NextRequest) {
     }
 
     await pool.execute(
-      'UPDATE T_USER_INFO SET tier = ? WHERE email = ?',
-      [isPremium ? 1 : 0, email]
+      `UPDATE T_USER_INFO 
+       SET tier = ?, 
+           valid_date = CASE WHEN ? = 1 THEN '9999-12-31' ELSE CURDATE() END 
+       WHERE email = ?`,
+      [isPremium ? 1 : 0, isPremium ? 1 : 0, email]
     );
 
     return NextResponse.json({ status: '8200' });
