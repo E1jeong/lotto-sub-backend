@@ -109,3 +109,20 @@ When a future change reverses or materially changes a decision, add a new ADR en
 - Antigravity will combine the user's global behavior rules with this repo's `AGENTS.md`.
 - If a future Antigravity-only override is needed, add a minimal `GEMINI.md` and document why here.
 - Product scope, architecture, and long-lived decisions belong in `docs/`, not in chat history or temporary agent artifacts.
+
+---
+
+## ADR-008: Notify Legacy Main-Server Over Loopback After Premium Tier Commit
+
+**Status**: Accepted
+
+**Decision**: After `/api/billing/receipt` commits a Premium tier update, the backend calls the legacy main-server's `POST /lotto/1077` over loopback (`http://127.0.0.1:10907`, same Gabia VM) to reissue the current week's expect-number set from 10 to 30. The call carries only `{ email, phone }`; the main-server re-derives tier and week from the shared DB. The call happens strictly after the DB transaction commits and never affects whether that transaction succeeds.
+
+**Context**: Free users who already received this week's 10-number set need it upgraded to 30 immediately on converting to Premium, instead of waiting for next week's issuance. Number generation still lives in the legacy main-server, not this backend, so the backend cannot perform the reissue itself. This was scoped jointly with the main-server owner (see the FisherLotto wiki, `server/main-server.md`) and restricted to loopback-only access since no API key was introduced for this endpoint.
+
+**Consequences**:
+- `lib/mainServer.ts` owns this integration; route handlers must not call the legacy main-server directly.
+- The call uses a short timeout and never throws past the route handler — a failed or unreachable main-server resolves to `reissued: false` and does not roll back or block the already-committed tier update.
+- `/api/billing/receipt`'s response gained an additive `reissued: boolean` field; the Android client only acts on `reissued: true`.
+- This is scoped to the receipt (payment) flow only. Pub/Sub-driven tier changes (renewal, hold recovery, revocation) do not call this endpoint.
+- `MAIN_SERVER_REISSUE_URL` allows overriding the loopback URL for local development where the legacy main-server is not reachable at `127.0.0.1:10907`.

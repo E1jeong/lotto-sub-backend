@@ -42,7 +42,8 @@ The architecture should stay small and explicit. Route handlers expose the API c
 ├── lib/
 │   ├── db.ts                           # MySQL pool and timezone behavior
 │   ├── firebaseAdmin.ts                # Firebase Admin initialization
-│   └── googlePlayApi.ts                # Google Play API integration
+│   ├── googlePlayApi.ts                # Google Play API integration
+│   └── mainServer.ts                   # Loopback call to legacy main-server (expect-number reissue)
 └── docs/
     ├── PRD.md
     ├── ARCHITECTURE.md
@@ -83,7 +84,8 @@ Android client completes Google Play purchase
      -> persist purchase record
      -> update user entitlement fields
   -> backend commits transaction
-  -> backend returns safe Lotto Protocol response
+  -> if Premium tier was just committed, backend calls legacy main-server (loopback only, `lib/mainServer.ts`) to reissue this week's expect-number set (10 -> 30)
+  -> backend returns safe Lotto Protocol response, including `reissued`
   -> non-critical push/event work runs outside the transaction when possible
 ```
 
@@ -91,6 +93,7 @@ Rules:
 - Receipt data from Android is a hint, not proof.
 - Duplicate purchase requests must be idempotent where the DB schema allows it.
 - Multi-table payment mutations must roll back together on failure.
+- The main-server reissue call happens only after the DB transaction commits, so its failure never affects entitlement state; a failed or unreachable call must resolve to `reissued: false`, never throw past the route handler.
 
 ### Google Play RTDN / Pub/Sub flow
 ```text

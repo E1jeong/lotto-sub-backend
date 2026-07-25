@@ -41,6 +41,7 @@ The highest-priority product outcome is that paid access is granted, maintained,
 5. Lotto feature support
    - Serve winning number data.
    - Gate premium lotto expectation behavior according to user entitlement.
+   - On Free-to-Premium conversion via `/api/billing/receipt`, request the legacy main-server (loopback-only) to reissue the current week's already-issued expect-number set from 10 to 30, and report the outcome to the client via a `reissued` flag. A failed or unreachable reissue call must never affect the already-committed tier update (see ADR-008).
 
 6. Operational safety
    - Keep server internals out of API responses.

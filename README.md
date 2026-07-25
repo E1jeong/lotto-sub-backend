@@ -75,9 +75,11 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 
 | Method | Path | 설명 | 비고 |
 |--------|------|------|------|
-| POST | `/api/billing/receipt` | Google Play 영수증 저장 | `{ orderId, productId, purchaseToken, purchaseTime, autoRenewing, email }` |
+| POST | `/api/billing/receipt` | Google Play 영수증 저장 | `{ orderId, productId, purchaseToken, purchaseTime, autoRenewing, email }` → 응답에 `reissued: boolean` 포함 |
 | POST | `/api/billing/subscription` | 구독 상태 조회 | `{ purchaseToken, productId }` |
 | POST | `/api/billing/pubsub` | RTDN Pub/Sub 수신 웹훅 | `?token=PUBSUB_SECRET_TOKEN` |
+
+`/api/billing/receipt`는 Premium tier 갱신을 커밋한 직후, 같은 Gabia VM 내부의 legacy main-server(`http://127.0.0.1:10907/lotto/1077`, `MAIN_SERVER_REISSUE_URL`로 override 가능)를 호출해 이번 주차 예상번호 세트를 10개에서 30개로 재발급 요청한다. `reissued: true`일 때만 앱이 로컬 캐시를 비우고 재발급을 안내해야 한다. main-server 호출 실패는 이미 커밋된 tier 갱신에 영향을 주지 않고 `reissued: false`로 응답한다.
 
 ## 응답 코드
 
