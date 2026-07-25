@@ -13,14 +13,6 @@ The primary goal is payment and subscription correctness: never trust client pay
 - Backend API changes must preserve Android request/response compatibility unless the user explicitly approves a coordinated client update.
 - When changing API paths, request/response fields, Lotto Protocol status codes, billing receipt flow, or subscription entitlement behavior, consider the Android client impact first.
 
-## Tech Stack
-- Next.js App Router API routes
-- TypeScript
-- MySQL via `mysql2/promise`
-- Google Play Developer API via `googleapis`
-- Firebase Admin SDK for FCM
-- Google Cloud Pub/Sub style RTDN webhook handling
-
 ## Required Reading Before Code Changes
 Before changing code, read the project docs that match the task:
 - Always read `docs/ARCHITECTURE.md`.
@@ -40,9 +32,6 @@ If `docs/ADR.md` does not cover a significant new decision, propose or add an AD
 - Avoid destructive DB operations such as `DROP` and `TRUNCATE` unless the user explicitly approves them for a safe environment.
 
 ## Code Organization
-- API routes live in `app/api/**/route.ts`.
-- Shared provider and infrastructure code lives in `lib/`.
-- Documentation lives in `docs/`.
 - Keep route handlers thin: validate input, call the relevant library/service code, map errors to safe responses.
 - Do not introduce a new framework, ORM, queue system, or validation library unless the user asks for it or an ADR is accepted.
 
@@ -58,12 +47,6 @@ If `docs/ADR.md` does not cover a significant new decision, propose or add an AD
 - For user-facing API behavior changes, update the relevant docs in the same change.
 
 ## Commands
-```bash
-npm run dev
-npm run build
-npm run lint
-```
-
 There is currently no dedicated `npm test` script. If tests are added later, update this file and `docs/ARCHITECTURE.md`.
 
 ## Antigravity Notes
