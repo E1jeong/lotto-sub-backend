@@ -35,7 +35,6 @@ The architecture should stay small and explicit. Route handlers expose the API c
 │   │       ├── route.ts                # User lookup
 │   │       ├── login/route.ts
 │   │       ├── register/route.ts
-│   │       ├── tier/route.ts
 │   │       └── withdraw/route.ts
 │   ├── layout.tsx
 │   └── page.tsx
@@ -112,6 +111,8 @@ Rules:
 - Unknown notification types should be logged safely and ignored or mapped conservatively.
 
 ## Subscription State Model
+`T_USER_INFO.tier` and `valid_date` are written only by the two provider-verified paths above — `/api/billing/receipt` and `/api/billing/pubsub`. No endpoint accepts a tier value from the client (ADR-009).
+
 The current product exposes premium entitlement through user tier and validity fields. When expanding subscription behavior, prefer explicit states instead of overloading booleans.
 
 Recommended long-term states:

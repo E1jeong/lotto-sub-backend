@@ -52,8 +52,9 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 | POST | `/api/users/register` | 유저 등록 | `{ name, email, phone, birth }` |
 | POST | `/api/users/login` | 로그인 / 유저 조회 | `{ email, phone }` |
 | GET | `/api/users` | 유저 조회 (내부용) | `?email=xxx` |
-| POST | `/api/users/tier` | tier 변경 | `{ email, phone, isPremium: boolean }` |
 | POST | `/api/users/withdraw` | 회원탈퇴 | `{ email, phone }` — hard delete |
+
+> tier 변경 전용 엔드포인트는 없다. `T_USER_INFO.tier`/`valid_date`는 Google Play 검증을 거친 `/api/billing/receipt`와 `/api/billing/pubsub`에서만 갱신한다 (ADR-009).
 
 ### 로또
 

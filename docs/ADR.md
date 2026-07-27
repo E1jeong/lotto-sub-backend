@@ -126,3 +126,23 @@ When a future change reverses or materially changes a decision, add a new ADR en
 - `/api/billing/receipt`'s response gained an additive `reissued: boolean` field; the Android client only acts on `reissued: true`.
 - This is scoped to the receipt (payment) flow only. Pub/Sub-driven tier changes (renewal, hold recovery, revocation) do not call this endpoint.
 - `MAIN_SERVER_REISSUE_URL` allows overriding the loopback URL for local development where the legacy main-server is not reachable at `127.0.0.1:10907`.
+
+---
+
+## ADR-009: Tier Is Written Only By Provider-Verified Server Paths
+
+**Status**: Accepted
+
+**Decision**: Remove `POST /api/users/tier`. `T_USER_INFO.tier` and `valid_date` are written only by `/api/billing/receipt` (Google Play Developer API verification) and `/api/billing/pubsub` (RTDN, re-verified against the provider). No endpoint accepts a client-supplied tier or entitlement value.
+
+**Context**: `/api/users/tier` predates the server-side billing flow, from when the Android client owned entitlement state. After the receipt and RTDN paths moved that ownership to this backend, the endpoint stayed and became actively harmful rather than merely redundant:
+
+- It set `valid_date = '9999-12-31'` on promotion. The Android client called it immediately after `/api/billing/receipt` succeeded, so every purchase overwrote the verified expiry the receipt flow had just committed.
+- It set `tier = 0, valid_date = CURDATE()` on demotion, driven only by the client's local `queryPurchases()` result. An empty local purchase list — a switched Play account, a transient Play Store state — demoted a paying user with no provider verification.
+- Both columns are shared with the legacy main-server, which derives expect-number issuance count from them, so the corruption propagated outside this repo.
+
+**Consequences**:
+- Deleting the route is safe for already-shipped clients. The Android call site wraps it in `try/catch` and only logs on failure, and the local tier cache is updated before the network call — a 404 degrades silently with no user-visible change.
+- The Android client must drop its call to this endpoint (`UserRepositoryImpl.updateTier`, `UserService.updateTier`, `TierRequest`) and keep only the local cache write. Tracked in the FisherLotto wiki roadmap; not a blocker for this change.
+- Tier changes now depend entirely on RTDN delivery for demotion. A dropped `EXPIRED`/`REVOKED` notification leaves a stale `tier = 1`, since `/api/billing/pubsub` acks business failures with HTTP 200 to avoid infinite Google retries. `valid_date` remains accurate as a secondary guard, but no reconciliation job exists yet — see the open item in the wiki.
+- Any future need to set tier manually (support, testing) must go through a verified path or an authenticated internal tool, not a public unauthenticated endpoint.
