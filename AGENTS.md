@@ -7,9 +7,9 @@ It handles user records, lotto data APIs, Firebase Cloud Messaging, and Google P
 The primary goal is payment and subscription correctness: never trust client payment data, keep Google Play and MySQL state consistent, and notify clients without blocking core API transactions.
 
 ## Related Client
-- Android client project: `<dev-root>/6.project/fisherlotto`
-- This backend project: `<dev-root>/7.server/lotto-sub-backend`
-- `<dev-root>` means the local parent directory that contains the numbered project folders.
+- Android client repository: `FisherLotto`
+- This backend repository: `lotto-sub-backend`
+- Numbered local folders differ by machine. Resolve both repositories from the current machine's development root instead of assuming a fixed `6.project` or `7.server` path.
 - Backend API changes must preserve Android request/response compatibility unless the user explicitly approves a coordinated client update.
 - When changing API paths, request/response fields, Lotto Protocol status codes, billing receipt flow, or subscription entitlement behavior, consider the Android client impact first.
 
