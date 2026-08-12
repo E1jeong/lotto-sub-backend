@@ -40,8 +40,10 @@ The highest-priority product outcome is that paid access is granted, maintained,
 
 5. Lotto feature support
    - Serve winning number data.
-   - Gate premium lotto expectation behavior according to user entitlement.
-   - On Free-to-Premium conversion via `/api/billing/receipt`, request the legacy main-server (loopback-only) to reissue the current week's already-issued expect-number set from 10 to 30, and report the outcome to the client via a `reissued` flag. A failed or unreachable reissue call must never affect the already-committed tier update (see ADR-008).
+   - Return the 10-set `pick_expect` base allocation to every user.
+   - When the main server stored a 20-set `pay_expect` allocation for a Premium user, append it to the base allocation and return 30 sets through the existing Android response contract.
+   - Preserve the issued row for the week: a mid-week cancellation or expiry does not remove its stored paid allocation. The main server applies the latest verified tier when preparing the next week's row.
+   - On Free-to-Premium conversion via `/api/billing/receipt`, request the legacy main-server (loopback-only) to add the current week's 20-set paid allocation, and report the outcome to the client via a `reissued` flag. A failed or unreachable reissue call must never affect the already-committed tier update (see ADR-008 and ADR-010).
 
 6. Operational safety
    - Keep server internals out of API responses.

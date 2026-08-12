@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     const [rows] = await pool.execute<RowDataPacket[]>(
-      'SELECT * FROM T_EXPECT_PICK WHERE email = ? AND phone = ? ORDER BY lotto_round DESC LIMIT 1',
+      'SELECT pick_expect, pay_expect FROM T_EXPECT_PICK WHERE email = ? AND phone = ? ORDER BY lotto_round DESC LIMIT 1',
       [email, phone]
     );
 
@@ -22,11 +22,18 @@ export async function POST(req: NextRequest) {
 
     const r = rows[0];
     const pickExpect = JSON.parse(r.pick_expect);
+    const payExpect = r.pay_expect === '$$' || r.pay_expect === null
+      ? null
+      : JSON.parse(r.pay_expect);
+    const lotto = [
+      ...pickExpect.lotto,
+      ...(payExpect?.lotto ?? []),
+    ];
 
     return NextResponse.json({
       status: '8200',
-      count: pickExpect.count,
-      lotto: pickExpect.lotto,
+      count: lotto.length,
+      lotto,
     });
   } catch (error) {
     console.error('예상번호 조회 에러:', error);

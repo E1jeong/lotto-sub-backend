@@ -28,7 +28,7 @@ The architecture should stay small and explicit. Route handlers expose the API c
 │   │   │   ├── token/route.ts          # User FCM token registration
 │   │   │   └── user/route.ts           # User FCM token removal
 │   │   ├── lotto/
-│   │   │   ├── expect/route.ts         # Premium lotto expectation endpoint
+│   │   │   ├── expect/route.ts         # Base and paid expected-number lookup endpoint
 │   │   │   ├── stats/route.ts          # Per-round grade/combination count stats endpoint
 │   │   │   └── winning/route.ts        # Lotto winning number endpoint
 │   │   └── users/
@@ -70,6 +70,8 @@ Do not call Google Play or Firebase directly from multiple route handlers if the
 ### MySQL
 MySQL is the durable state store. Schema-affecting work must be documented in `docs/MIGRATION.md` and, for long-lived architectural choices, `docs/ADR.md`.
 
+`T_EXPECT_PICK` separates issuance-time allocations. `pick_expect` is the 10-set base allocation for every user. `pay_expect` stores `$$` for a Free-issued row or the 20-set paid JSON created when the main server sees Premium tier at issuance time. The lookup path treats the stored row as authoritative for that week instead of re-checking current tier, so a mid-week downgrade does not revoke already-issued numbers (ADR-010).
+
 KST is the project default for app-level date interpretation. When Google Play returns epoch milliseconds or UTC timestamps, keep provider values precise and convert only at the app boundary where needed.
 
 ## Payment And Subscription Flow
@@ -83,7 +85,7 @@ Android client completes Google Play purchase
      -> persist purchase record
      -> update user entitlement fields
   -> backend commits transaction
-  -> if Premium tier was just committed, backend calls legacy main-server (loopback only, `lib/mainServer.ts`) to reissue this week's expect-number set (10 -> 30)
+  -> if Premium tier was just committed, backend calls legacy main-server (loopback only, `lib/mainServer.ts`) to add this week's 20-set paid allocation (10 + 20)
   -> backend returns safe Lotto Protocol response, including `reissued`
   -> non-critical push/event work runs outside the transaction when possible
 ```
@@ -93,6 +95,17 @@ Rules:
 - Duplicate purchase requests must be idempotent where the DB schema allows it.
 - Multi-table payment mutations must roll back together on failure.
 - The main-server reissue call happens only after the DB transaction commits, so its failure never affects entitlement state; a failed or unreachable call must resolve to `reissued: false`, never throw past the route handler.
+
+### Expected-number lookup
+```text
+Android client -> POST /api/lotto/expect { email, phone }
+  -> backend reads the latest T_EXPECT_PICK row
+  -> parse the required 10-set pick_expect JSON
+  -> if pay_expect is not $$, parse and append its 20 sets
+  -> return the existing { status, count, lotto } contract
+```
+
+The `pay_expect` marker or JSON value, not the user's current tier at lookup time, determines whether the response contains 10 or 30 sets. This preserves the allocation made at the main-server issuance window through the rest of that week. SQL `NULL` is accepted only as a rollout-compatible base-only value; the current main-server contract writes `$$`.
 
 ### Google Play RTDN / Pub/Sub flow
 ```text

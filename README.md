@@ -61,7 +61,7 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 | Method | Path | 설명 | 비고 |
 |--------|------|------|------|
 | GET | `/api/lotto/winning` | 당첨 번호 조회 | `?round=1100` |
-| POST | `/api/lotto/expect` | 예상 번호 조회 | `{ email, phone }` |
+| POST | `/api/lotto/expect` | 예상 번호 조회 | `{ email, phone }` → 무료 발급행 10개, 유료 발급행 30개 |
 | GET | `/api/lotto/stats` | 회차별 등수 조합 통계 조회 | `?round=1100` (0=최신) |
 
 ### FCM
@@ -80,7 +80,9 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 | POST | `/api/billing/subscription` | 구독 상태 조회 | `{ purchaseToken, productId }` |
 | POST | `/api/billing/pubsub` | RTDN Pub/Sub 수신 웹훅 | `?token=PUBSUB_SECRET_TOKEN` |
 
-`/api/billing/receipt`는 Premium tier 갱신을 커밋한 직후, 같은 Gabia VM 내부의 legacy main-server(`http://127.0.0.1:10907/lotto/1077`, `MAIN_SERVER_REISSUE_URL`로 override 가능)를 호출해 이번 주차 예상번호 세트를 10개에서 30개로 재발급 요청한다. `reissued: true`일 때만 앱이 로컬 캐시를 비우고 재발급을 안내해야 한다. main-server 호출 실패는 이미 커밋된 tier 갱신에 영향을 주지 않고 `reissued: false`로 응답한다.
+`/api/lotto/expect`는 `T_EXPECT_PICK.pick_expect`의 기본 10개를 항상 반환한다. 무료 발급행의 `pay_expect` 값은 `$$`이며, 유료 JSON이 저장된 경우에만 추가 20개를 뒤에 합쳐 기존 `{ status, count, lotto }` 형식으로 30개를 반환한다. 발급 후 주중에 구독이 취소되거나 만료되어도 저장된 유료 JSON은 그대로 제공하며, 다음 주차 발급 때 main-server가 최신 tier를 다시 적용한다.
+
+`/api/billing/receipt`는 Premium tier 갱신을 커밋한 직후, 같은 Gabia VM 내부의 legacy main-server(`http://127.0.0.1:10907/lotto/1077`, `MAIN_SERVER_REISSUE_URL`로 override 가능)를 호출해 이번 주차의 유료 20개(`pay_expect`) 추가 발급을 요청한다. `reissued: true`일 때만 앱이 로컬 캐시를 비우고 재발급을 안내해야 한다. main-server 호출 실패는 이미 커밋된 tier 갱신에 영향을 주지 않고 `reissued: false`로 응답한다.
 
 ## 응답 코드
 
@@ -99,6 +101,7 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 - `T_USER_INFO` — 유저 정보 (`tier`: 0=FREE, 1=PREMIUM)
 - `T_PURCHASES` — Google Play 구독 영수증
 - `T_WINNER_NUM` — 로또 회차별 당첨 번호
+- `T_EXPECT_PICK` — 예상번호 발급행 (`pick_expect`: 공통 10개 JSON, `pay_expect`: 무료는 `$$`, 유료 발급 시 추가 20개 JSON; 기존 `pick_count` 삭제)
 - `T_RESULT_COMBI` — 로또 회차별 등수(1~5등) 당첨 조합 개수 및 전체 조합 개수(`combi_count`)
 
 자세한 마이그레이션 내용은 [docs/MIGRATION.md](docs/MIGRATION.md) 참고.

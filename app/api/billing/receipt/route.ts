@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       connection.release();
     }
 
-    // Premium tier 커밋 직후에만 main-server에 이번 주차 예상번호 재발급(10 -> 30)을 요청한다.
+    // Premium tier 커밋 직후에만 main-server에 이번 주차 유료 예상번호 20개 추가 발급을 요청한다.
     // tier 갱신은 이미 커밋되어 성공이 확정된 상태이므로, 이 블록의 어떤 오류도
     // 바깥 catch로 전파되어 이미 성공한 결제를 실패 응답으로 덮어써서는 안 된다.
     let reissued = false;

@@ -146,3 +146,24 @@ When a future change reverses or materially changes a decision, add a new ADR en
 - The Android client must drop its call to this endpoint (`UserRepositoryImpl.updateTier`, `UserService.updateTier`, `TierRequest`) and keep only the local cache write. Tracked in the FisherLotto wiki roadmap; not a blocker for this change.
 - Tier changes now depend entirely on RTDN delivery for demotion. A dropped `EXPIRED`/`REVOKED` notification leaves a stale `tier = 1`, since `/api/billing/pubsub` acks business failures with HTTP 200 to avoid infinite Google retries. `valid_date` remains accurate as a secondary guard, but no reconciliation job exists yet — see the open item in the wiki.
 - Any future need to set tier manually (support, testing) must go through a verified path or an authenticated internal tool, not a public unauthenticated endpoint.
+
+---
+
+## ADR-010: Store Base And Paid Expected Numbers Separately
+
+**Status**: Accepted
+
+**Decision**: `T_EXPECT_PICK.pick_expect` always stores the 10 base expected-number sets available to every user. `pay_expect` stores the literal `$$` marker for a Free-issued row, or uses the same JSON shape as `pick_expect` to store 20 additional sets when the user was Premium at the main-server's scheduled issuance time. The redundant `pick_count` column is removed.
+
+`POST /api/lotto/expect` preserves the Android-compatible `{ status, count, lotto }` response. It returns only `pick_expect.lotto` when `pay_expect` is `$$`, and returns `pick_expect.lotto` followed by `pay_expect.lotto` when the paid JSON exists. `count` is derived from the combined list length.
+
+The stored row records issuance-time entitlement. The lookup endpoint does not re-check the user's current tier, so cancellation, expiry, refund, or revocation during the week does not remove numbers already issued for that week. The main server applies the latest verified tier the next time it prepares a week's row.
+
+**Context**: The earlier model in ADR-008 described replacing a 10-set with a single 30-set. The production schema now separates the universally available base set from the paid benefit. This avoids duplicating the issue count in a table column and lets the paid portion remain explicit without changing the Android response contract.
+
+**Consequences**:
+- Free rows store `pay_expect = '$$'` and return 10 sets.
+- Rows issued while Premium return 30 sets even if the user's tier changes later that week.
+- The main-server reissue operation for a mid-week Free-to-Premium conversion should populate the 20-set `pay_expect` portion instead of replacing `pick_expect`.
+- The backend also treats SQL `NULL` as base-only during rollout compatibility, but `NULL` is not the current main-server storage contract.
+- The schema transition and rollout requirements are recorded in `docs/MIGRATION.md`.
