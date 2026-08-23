@@ -1,57 +1,112 @@
-# Project: Lotto Subscription Backend
+# Lotto Subscription Backend AI Guide
 
-## Purpose
-This repository is a Next.js App Router API-only backend for the fisherlotto Android app.
-It handles user records, lotto data APIs, Firebase Cloud Messaging, and Google Play subscription receipt flows backed by MySQL.
+## Start Here
 
-The primary goal is payment and subscription correctness: never trust client payment data, keep Google Play and MySQL state consistent, and notify clients without blocking core API transactions.
+- This guide is a navigation aid and execution safety guard, not a history archive.
+- The Obsidian wiki `Dev/Project/Personal/lotto-sub-backend` is the single source of truth for business context, DB contracts, payment flows, deployment details, and decision history.
+- Before resuming work or making non-trivial changes, follow the mandatory read order:
+  1. `README.md` (Wiki entrypoint)
+  2. `handoff.md` (Current state and unresolved blockers)
+  3. `issues/needs-verification.md` (Unsettled claims and verification gaps)
+- Communicate in Korean for explanations and report completion status in Korean.
+- Read `docs/ARCHITECTURE.md` and `docs/ADR.md` before changing payment, DB, or external provider logic.
 
-## Related Client
-- Android client repository: `FisherLotto`
-- This backend repository: `lotto-sub-backend`
-- Numbered local folders differ by machine. Resolve both repositories from the current machine's development root instead of assuming a fixed `6.project` or `7.server` path.
-- Backend API changes must preserve Android request/response compatibility unless the user explicitly approves a coordinated client update.
-- When changing API paths, request/response fields, Lotto Protocol status codes, billing receipt flow, or subscription entitlement behavior, consider the Android client impact first.
+## Machine Topology
 
-## Required Reading Before Code Changes
-Before changing code, read the project docs that match the task:
-- Always read `docs/ARCHITECTURE.md`.
-- Read `docs/ADR.md` when the task affects billing, subscription state, DB schema, deployment, API contracts, or external provider boundaries.
-- Read `docs/PRD.md` when the task changes product behavior or API behavior visible to the Android client.
-- If migration documentation exists, read it before touching MySQL table shape or migration-related logic.
+- **Company PC**: `C:\Users\Unionbiometrics\Desktop\dev\1.project\lotto-sub-backend`
+- **Home Main Notebook**: `C:\Users\sumas\OneDrive\Desktop\dev\7.server\lotto-sub-backend`
+- **Related Client Repository**: `FisherLotto` (`<dev-root>/6.project/fisherlotto` or `1.project/FisherLotto`)
 
-If `docs/ADR.md` does not cover a significant new decision, propose or add an ADR before implementing the code.
+## Product and Runtime Pipeline Map
 
-## Critical Rules
-- All date/time behavior must be interpreted in Korea Standard Time (KST, `+09:00`) unless an external provider explicitly requires UTC milliseconds or ISO timestamps.
-- Client-supplied Google Play receipt fields are untrusted. Verify purchase/subscription state server-side with Google Play Developer API before granting premium access.
-- Payment verification and subscription state updates must use `try/catch` and a DB transaction when multiple persistent changes must succeed or fail together.
-- Do not expose DB errors, provider raw errors, stack traces, service account data, API keys, or SQL messages in API responses.
-- Keep slow or retryable side effects outside the core transaction path where possible. Push notifications and async subscription events should not make the main payment mutation unreliable.
-- Do not change existing payment logic or DB schema without first explaining the impact and tradeoffs to the user.
-- Avoid destructive DB operations such as `DROP` and `TRUNCATE` unless the user explicitly approves them for a safe environment.
+Lotto Subscription Backend is a Next.js App Router API-only backend for the FisherLotto Android app, backed by MySQL, Firebase Cloud Messaging, and Google Play Developer API.
 
-## Code Organization
-- Keep route handlers thin: validate input, call the relevant library/service code, map errors to safe responses.
-- Do not introduce a new framework, ORM, queue system, or validation library unless the user asks for it or an ADR is accepted.
+```mermaid
+flowchart TD
+    Client["Android Client (FisherLotto)"]
+    
+    subgraph NextJS["Next.js App Router (app/api/)"]
+        AuthRoute["Users & Auth<br/>/api/users/*"]
+        BillingRoute["Billing & Webhooks<br/>/api/billing/*"]
+        LottoRoute["Lotto Data<br/>/api/lotto/*"]
+        FCMRoute["Push Messaging<br/>/api/fcm/*"]
+    end
+    
+    subgraph Services["Infrastructure & Integrations (lib/)"]
+        DBLib["MySQL Pool & Transactions<br/>(lib/db.ts)"]
+        PlayLib["Google Play Developer API<br/>(lib/googlePlayApi.ts)"]
+        MainLib["Main Server Loopback<br/>(lib/mainServer.ts)"]
+        FCMLib["Firebase Admin SDK<br/>(lib/firebaseAdmin.ts)"]
+    end
+    
+    subgraph External["External Services & Storage"]
+        MySQL[("MySQL Database<br/>T_USER_INFO, T_PURCHASES, T_EXPECT_PICK")]
+        PlayAPI["Google Play Developer API"]
+        PubSub["Google Cloud Pub/Sub (RTDN)"]
+        FCMServer["Firebase Cloud Messaging"]
+        MainServer["Legacy Main Server (:10907/lotto/1077)"]
+    end
+    
+    Client -->|REST API| AuthRoute
+    Client -->|Receipt / Status| BillingRoute
+    Client -->|Expect / Winning / Stats| LottoRoute
+    Client -->|Token Register / Remove| FCMRoute
+    PubSub -->|Webhook POST| BillingRoute
+    
+    AuthRoute --> DBLib
+    BillingRoute --> PlayLib
+    BillingRoute --> DBLib
+    BillingRoute -.->|Post-commit Paid Reissue| MainLib
+    LottoRoute --> DBLib
+    FCMRoute --> FCMLib
+    
+    DBLib --> MySQL
+    PlayLib --> PlayAPI
+    MainLib --> MainServer
+    FCMLib --> FCMServer
+```
 
-## API And Error Contract
-- Preserve the Android Lotto Protocol response codes documented in `README.md` unless the user approves a breaking change.
-- Prefer small, explicit error mapping over returning raw exceptions.
-- Maintain backward-compatible request/response fields for existing Android endpoints.
+## Module and Domain Map
 
-## Development Workflow
-- Make surgical changes only. Do not refactor unrelated code while fixing a specific issue.
-- For bug fixes, reproduce the failure first when practical, then fix it.
-- For payment/subscription changes, list edge cases before editing: duplicate request, delayed receipt, Google API failure, DB failure, renewal, cancellation, refund, hold, and expiry.
-- For user-facing API behavior changes, update the relevant docs in the same change.
+| Domain | Guide / Primary Entry | Ownership & Responsibility | Key Integrations | Related Wiki Topics |
+| :--- | :--- | :--- | :--- | :--- |
+| **Billing & Subscriptions** | `app/api/billing/receipt/route.ts` | Google Play receipt verification, RTDN Pub/Sub webhook, subscription verification | `lib/googlePlayApi.ts`, `lib/db.ts` | `technical/architecture.md`, `technical/payment-implementation-history.md`, `issues/payment-gaps.md` |
+| **Lotto Data & Issuance** | `app/api/lotto/expect/route.ts` | Base (10) and paid (20) expected number lookups, round winning numbers, stats | `lib/db.ts`, `lib/mainServer.ts` | `technical/DB.md`, `technical/design-decisions.md` (ADR-008, ADR-010) |
+| **Users & Authentication** | `app/api/users/login/route.ts` | User registration, login, withdrawal, user profile lookup | `lib/db.ts` (`T_USER_INFO`) | `issues/security-and-auth-gaps.md`, `docs/ARCHITECTURE.md` |
+| **FCM Push Messaging** | `app/api/fcm/send/route.ts` | User device token registration/removal, server-authorized push sending | `lib/firebaseAdmin.ts`, `lib/db.ts` | `technical/sourcemap.md`, `technical/architecture.md` |
+| **Database & Infrastructure** | `lib/db.ts` | MySQL connection pool (`mysql2/promise`), transaction helper, KST time default | MySQL (`T_USER_INFO`, `T_PURCHASES`, `T_EXPECT_PICK`) | `technical/DB.md`, `docs/MIGRATION.md` |
 
-## Commands
-There is currently no dedicated `npm test` script. If tests are added later, update this file and `docs/ARCHITECTURE.md`.
+## Task Router
 
-## Antigravity Notes
-- `AGENTS.md` is the shared project rule file. Keep it concise and stable.
-- Do not add a project-level `GEMINI.md` unless this repo needs Antigravity-only rules that cannot live in `AGENTS.md`.
-- The user's global `~/.gemini/GEMINI.md` already covers general working behavior; keep this repo's project-specific rules in `AGENTS.md` and `docs/`.
-- Record long-lived product scope in `docs/PRD.md`, architecture in `docs/ARCHITECTURE.md`, and decisions in `docs/ADR.md`.
-- Do not store completed task logs or temporary plans in `AGENTS.md`; use short-lived chat/task artifacts instead.
+| Request Concern | Read First in Wiki | First Source Path | Then Trace |
+| :--- | :--- | :--- | :--- |
+| **Google Play Receipt Verification** | `technical/architecture.md`<br>`issues/payment-gaps.md` | `app/api/billing/receipt/route.ts` | `lib/googlePlayApi.ts` → `lib/db.ts` (`T_PURCHASES`, `T_USER_INFO`) → `lib/mainServer.ts` (`requestExpectNumberReissue`) |
+| **Google Play RTDN Pub/Sub Webhook** | `technical/architecture.md`<br>`issues/payment-gaps.md` | `app/api/billing/pubsub/route.ts` | `lib/googlePlayApi.ts` (`updateUserTierByToken`) → `lib/firebaseAdmin.ts` (`sendNotificationToUser`) |
+| **Expected Numbers (10/30 Split)** | `technical/DB.md`<br>`docs/ADR.md` (ADR-010) | `app/api/lotto/expect/route.ts` | `lib/db.ts` (`T_EXPECT_PICK.pick_expect`, `pay_expect`) → Android response `{ count, lotto }` |
+| **User Login & Withdrawal** | `issues/security-and-auth-gaps.md` | `app/api/users/login/route.ts` | `app/api/users/withdraw/route.ts` → `lib/db.ts` (`T_USER_INFO`) |
+| **FCM Push Notification & Tokens** | `technical/sourcemap.md` | `app/api/fcm/token/route.ts` | `app/api/fcm/send/route.ts` → `lib/firebaseAdmin.ts` (`admin.messaging()`) |
+| **Main-Server Expect Reissue** | `technical/design-decisions.md` (ADR-008) | `lib/mainServer.ts` | `app/api/billing/receipt/route.ts` → `POST :10907/lotto/1077` |
+| **Server Deployment & PM2** | `operations/deployment.md` | `.github/workflows/deploy.yml` | Gabia Cloud PM2 restart & smoke test |
+
+## Immutable Boundaries and Change Gates
+
+1. **Zero-Trust Client Payment Gate**: Never trust client-supplied tier or payment values. Verify receipt/subscription state server-side with Google Play Developer API before granting `tier = 1`. `POST /api/users/tier` is permanently deleted (ADR-009) and must never be reintroduced.
+2. **Atomic DB Mutation Gate**: Multi-table billing mutations (`T_PURCHASES INSERT` + `T_USER_INFO UPDATE`) must execute inside a MySQL transaction (`connection.beginTransaction()`, `commit()`, `rollback()`, `release()`).
+3. **Side-Effect Isolation Gate**: Non-critical network side-effects (FCM push, external main-server loopback `POST /lotto/1077`) must execute strictly outside the DB transaction in isolated `try/catch` blocks. Failures must never roll back or fake-fail an already-committed payment.
+4. **Error & Secret Masking Gate**: Never expose DB error messages, SQL exceptions, stack traces, private keys (`FIREBASE_PRIVATE_KEY`), Google service account credentials, or API tokens in API responses.
+5. **KST Timezone Invariant Gate**: All application-level date calculations and DB date strings (`valid_date`, `create_time`, etc.) must be strictly interpreted in Korea Standard Time (KST, `+09:00`). Convert Google Play epoch ms/UTC only at ingress/egress boundaries.
+6. **Android Client Contract Compatibility Gate**: Preserve Android Lotto Protocol status codes (e.g. `8200`, `8400`, `8611`, `8633`, `8655`, `8677`, `8699`) and backward-compatible JSON shapes. Never alter endpoint contracts without explicit client coordination.
+7. **Non-Destructive DB Gate**: Never perform destructive DDL/DML operations (`DROP`, `TRUNCATE`). All schema updates must coordinate with shared DB users and be documented in `docs/MIGRATION.md` and `docs/ADR.md`.
+
+## Build and Verification
+
+```bash
+# Lint checks
+npm run lint
+
+# Production build & route check
+npm run build
+
+# Local development server
+npm run dev
+```
