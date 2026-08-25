@@ -3,19 +3,18 @@
 ## Start Here
 
 - This guide is a navigation aid and execution safety guard, not a history archive.
-- The Obsidian wiki `Dev/Project/Personal/lotto-sub-backend` is the single source of truth for business context, DB contracts, payment flows, deployment details, and decision history.
+- The Obsidian wiki at vault-relative `Dev/Project/Personal/lotto-sub-backend` is the single source of truth for business context, DB contracts, payment flows, deployment details, and decision history. Resolve the vault through `_meta/routing-tables.md` or `obsidian-wiki-sync`, never a hardcoded file URL.
 - Before resuming work or making non-trivial changes, follow the mandatory read order:
   1. `README.md` (Wiki entrypoint)
   2. `handoff.md` (Current state and unresolved blockers)
-  3. `issues/needs-verification.md` (Unsettled claims and verification gaps)
+  3. `schema.md` (Project maintenance and evidence rules)
+  4. `index.md` (Task navigation)
+- Read `issues/needs-verification.md` when the task touches an unsettled claim or verification gap.
+- Before multi-step or resumed implementation, ground the wiki context against live code, propose `step → verify` checkpoints, and confirm them before editing.
 - Communicate in Korean for explanations and report completion status in Korean.
 - Read `docs/ARCHITECTURE.md` and `docs/ADR.md` before changing payment, DB, or external provider logic.
-
-## Machine Topology
-
-- **Company PC**: `C:\Users\Unionbiometrics\Desktop\dev\1.project\lotto-sub-backend`
-- **Home Main Notebook**: `C:\Users\sumas\OneDrive\Desktop\dev\7.server\lotto-sub-backend`
-- **Related Client Repository**: `FisherLotto` (`<dev-root>/6.project/fisherlotto` or `1.project/FisherLotto`)
+- Repository locations: company `C:\Users\Unionbiometrics\Desktop\dev\1.project\lotto-sub-backend`; main `C:\Users\sumas\OneDrive\Desktop\dev\7.server\lotto-sub-backend`.
+- Related client: `FisherLotto` (`<dev-root>/6.project/fisherlotto` or `1.project/FisherLotto`).
 
 ## Product and Runtime Pipeline Map
 
@@ -66,7 +65,7 @@ flowchart TD
     FCMLib --> FCMServer
 ```
 
-## Module and Domain Map
+## Module/Domain Map and First Reads
 
 | Domain | Guide / Primary Entry | Ownership & Responsibility | Key Integrations | Related Wiki Topics |
 | :--- | :--- | :--- | :--- | :--- |
