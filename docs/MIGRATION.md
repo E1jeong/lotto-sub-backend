@@ -1,5 +1,19 @@
 # Database Migrations
 
+## 2026-08-28: Enforce Purchase-Token Uniqueness
+
+`T_PURCHASES.purchase_token` is stored as `TEXT`, so a direct full-text unique index is not available. The production schema adds a persisted SHA-256 generated column and a unique index on that hash:
+
+```sql
+ALTER TABLE T_PURCHASES
+  ADD COLUMN purchase_token_sha256 BINARY(32)
+    GENERATED ALWAYS AS (UNHEX(SHA2(purchase_token, 256))) PERSISTENT,
+  ADD UNIQUE INDEX uq_t_purchases_purchase_token_sha256
+    (purchase_token_sha256);
+```
+
+The original token remains stored unchanged. Before applying the migration, confirm that `purchase_token` has no null, empty, or duplicate values. Afterward, verify `SHOW INDEX FROM T_PURCHASES` reports `uq_t_purchases_purchase_token_sha256` with `Non_unique = 0`.
+
 ## 2026-08-12: Split Base And Paid Expected Numbers
 
 The production `T_EXPECT_PICK` schema change was reported as already applied outside this repository. This repository contains no DDL for it; this entry records the contract the API now expects.

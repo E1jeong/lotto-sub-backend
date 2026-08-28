@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { updateUserTierByToken } from '@/lib/googlePlayApi';
+import { syncUserEntitlementByToken } from '@/lib/googlePlayApi';
 import { admin } from '@/lib/firebaseAdmin';
 import type { RowDataPacket } from 'mysql2';
 
@@ -34,7 +34,10 @@ const NOTIFICATION_TYPE = {
   RECOVERED: 1,
   RENEWED: 2,
   CANCELED: 3,
+  ON_HOLD: 5,
   IN_GRACE_PERIOD: 6,
+  RESTARTED: 7,
+  PAUSED: 10,
   REVOKED: 12,
   EXPIRED: 13,
 } as const;
@@ -98,29 +101,23 @@ export async function POST(req: NextRequest) {
     switch (notificationType) {
       case NOTIFICATION_TYPE.RECOVERED:
       case NOTIFICATION_TYPE.RENEWED:
-      case NOTIFICATION_TYPE.IN_GRACE_PERIOD: {
-        const email = await updateUserTierByToken(purchaseToken, pool, 1);
-        console.log(`[pubsub] tier=1 업데이트 완료 (type=${notificationType})`);
-        if (email) {
-          await sendFcmToUser(email, '구독 상태 안내', '구독이 정상적으로 갱신 또는 유지되었습니다.');
-        }
-        break;
-      }
-
+      case NOTIFICATION_TYPE.CANCELED:
+      case NOTIFICATION_TYPE.ON_HOLD:
+      case NOTIFICATION_TYPE.IN_GRACE_PERIOD:
+      case NOTIFICATION_TYPE.RESTARTED:
+      case NOTIFICATION_TYPE.PAUSED:
       case NOTIFICATION_TYPE.REVOKED:
       case NOTIFICATION_TYPE.EXPIRED: {
-        const email = await updateUserTierByToken(purchaseToken, pool, 0);
-        console.log(`[pubsub] tier=0 업데이트 완료 (type=${notificationType})`);
-        if (email) {
-          await sendFcmToUser(email, '구독 만료 안내', '구독이 만료되어 기본 혜택으로 전환되었습니다.');
+        const result = await syncUserEntitlementByToken(purchaseToken, pool);
+        console.log(`[pubsub] entitlement 동기화 완료 (type=${notificationType}, state=${result.subscriptionState})`);
+        if (result.email) {
+          const message = result.isEntitled
+            ? '구독 상태가 정상적으로 유지됩니다.'
+            : '구독 상태가 변경되어 기본 혜택으로 전환되었습니다.';
+          await sendFcmToUser(result.email, '구독 상태 안내', message);
         }
         break;
       }
-
-      case NOTIFICATION_TYPE.CANCELED:
-        // 취소는 만료일까지 유효 — 별도 처리 없음
-        console.log(`[pubsub] CANCELED 수신 (만료일까지 유효, 처리 없음)`);
-        break;
 
       default:
         console.log(`[pubsub] 처리하지 않는 notificationType=${notificationType}`);

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSubscriptionDetails } from '@/lib/googlePlayApi';
 
+const ALLOWED_PRODUCT_IDS = ['fisherlotto_monthly'];
+
 interface SubscriptionQueryRequest {
   purchaseToken: string;
   productId: string;
@@ -28,10 +30,14 @@ export async function POST(req: NextRequest) {
     }
 
     const details = await getSubscriptionDetails(purchaseToken);
+    const isEntitled = details.isEntitled && ALLOWED_PRODUCT_IDS.includes(details.productId ?? '');
 
     return NextResponse.json({
       success: true,
       expiryTimeMillis: details.expiryTimeMillis,
+      productId: details.productId,
+      subscriptionState: details.subscriptionState,
+      isEntitled,
       autoRenewing: details.autoRenewing,
       cancelAtPeriodEnd: details.cancelAtPeriodEnd,
       isOnHold: details.isOnHold,

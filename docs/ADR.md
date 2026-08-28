@@ -183,3 +183,17 @@ The stored row records issuance-time entitlement. The lookup endpoint does not r
 - The receipt API no longer exposes whether `/lotto/1077` changed a row.
 - The main-server response field is optional and ignored if present, preserving compatibility while the external server is updated.
 - Android must apply its local-cache reset only for a newly completed purchase, never a restore or duplicate receipt; the follow-up is tracked in the FisherLotto project wiki.
+
+---
+
+## ADR-012: Derive Entitlement From The Current Provider State
+
+**Status**: Accepted
+
+**Decision**: The receipt, subscription-status, and RTDN flows derive entitlement from the current Google Play subscription state, provider product ID, and future expiry. `ACTIVE`, `IN_GRACE_PERIOD`, and non-expired `CANCELED` subscriptions retain access. Pending, paused, on-hold, expired, and invalid-product subscriptions do not. Receipt idempotency uses the Google Play purchase token, protected by a unique SHA-256 generated-column index.
+
+**Consequences**:
+
+- Android must not estimate expiry or treat a failed provider check as Premium.
+- A duplicate token belonging to the same stored account is revalidated and can repair that account's local tier; it never rebinds to another email.
+- Account transfer remains out of scope until authenticated account ownership is available.
