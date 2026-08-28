@@ -55,7 +55,7 @@ flowchart TD
     AuthRoute --> DBLib
     BillingRoute --> PlayLib
     BillingRoute --> DBLib
-    BillingRoute -.->|Post-commit Paid Reissue| MainLib
+    BillingRoute -.->|Post-commit Paid Issuance Sync| MainLib
     LottoRoute --> DBLib
     FCMRoute --> FCMLib
     
@@ -79,12 +79,12 @@ flowchart TD
 
 | Request Concern | Read First in Wiki | First Source Path | Then Trace |
 | :--- | :--- | :--- | :--- |
-| **Google Play Receipt Verification** | `technical/architecture.md`<br>`issues/payment-gaps.md` | `app/api/billing/receipt/route.ts` | `lib/googlePlayApi.ts` → `lib/db.ts` (`T_PURCHASES`, `T_USER_INFO`) → `lib/mainServer.ts` (`requestExpectNumberReissue`) |
+| **Google Play Receipt Verification** | `technical/architecture.md`<br>`issues/payment-gaps.md` | `app/api/billing/receipt/route.ts` | `lib/googlePlayApi.ts` → `lib/db.ts` (`T_PURCHASES`, `T_USER_INFO`) → `lib/mainServer.ts` (`requestExpectNumberIssuance`) |
 | **Google Play RTDN Pub/Sub Webhook** | `technical/architecture.md`<br>`issues/payment-gaps.md` | `app/api/billing/pubsub/route.ts` | `lib/googlePlayApi.ts` (`updateUserTierByToken`) → `lib/firebaseAdmin.ts` (`sendNotificationToUser`) |
 | **Expected Numbers (10/30 Split)** | `technical/DB.md`<br>`docs/ADR.md` (ADR-010) | `app/api/lotto/expect/route.ts` | `lib/db.ts` (`T_EXPECT_PICK.pick_expect`, `pay_expect`) → Android response `{ count, lotto }` |
 | **User Login & Withdrawal** | `issues/security-and-auth-gaps.md` | `app/api/users/login/route.ts` | `app/api/users/withdraw/route.ts` → `lib/db.ts` (`T_USER_INFO`) |
 | **FCM Push Notification & Tokens** | `technical/sourcemap.md` | `app/api/fcm/token/route.ts` | `app/api/fcm/send/route.ts` → `lib/firebaseAdmin.ts` (`admin.messaging()`) |
-| **Main-Server Expect Reissue** | `technical/design-decisions.md` (ADR-008) | `lib/mainServer.ts` | `app/api/billing/receipt/route.ts` → `POST :10907/lotto/1077` |
+| **Main-Server Expect-Number Issuance Sync** | `technical/design-decisions.md` (ADR-008, ADR-011) | `lib/mainServer.ts` | `app/api/billing/receipt/route.ts` → `POST :10907/lotto/1077` |
 | **Server Deployment & PM2** | `operations/deployment.md` | `.github/workflows/deploy.yml` | Gabia Cloud PM2 restart & smoke test |
 
 ## Immutable Boundaries and Change Gates

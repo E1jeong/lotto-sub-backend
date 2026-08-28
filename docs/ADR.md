@@ -167,3 +167,19 @@ The stored row records issuance-time entitlement. The lookup endpoint does not r
 - The main-server reissue operation for a mid-week Free-to-Premium conversion should populate the 20-set `pay_expect` portion instead of replacing `pick_expect`.
 - The backend also treats SQL `NULL` as base-only during rollout compatibility, but `NULL` is not the current main-server storage contract.
 - The schema transition and rollout requirements are recorded in `docs/MIGRATION.md`.
+
+---
+
+## ADR-011: Remove The Client-Facing Reissue Signal
+
+**Status**: Accepted
+
+**Decision**: Keep the post-commit loopback request to `POST /lotto/1077`, but remove the `reissued` field from both its required response contract and `/api/billing/receipt`'s response. The sub-backend treats an HTTP 2xx response containing `{ status: '8200' }` as a successful issuance-sync request; a failure remains isolated from the already-committed entitlement update.
+
+**Context**: `reissued` existed solely to tell the Android app to delete its cached 10-set Room data after the main server added the paid 20-set allocation. The selected app direction is to handle a confirmed new purchase by deleting its local issued numbers, re-enabling the issue action, and guiding the user to fetch the server's current combined `{ count, lotto }` result. The provider-verified receipt result, not an additional main-server response field, is the relevant client trigger.
+
+**Consequences**:
+
+- The receipt API no longer exposes whether `/lotto/1077` changed a row.
+- The main-server response field is optional and ignored if present, preserving compatibility while the external server is updated.
+- Android must apply its local-cache reset only for a newly completed purchase, never a restore or duplicate receipt; the follow-up is tracked in the FisherLotto project wiki.

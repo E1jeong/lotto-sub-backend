@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getSubscriptionDetails } from '@/lib/googlePlayApi';
-import { requestExpectNumberReissue } from '@/lib/mainServer';
+import { requestExpectNumberIssuance } from '@/lib/mainServer';
 import type { RowDataPacket } from 'mysql2';
 
 const ALLOWED_PRODUCT_IDS = ['fisherlotto_monthly'];
@@ -105,7 +105,6 @@ export async function POST(req: NextRequest) {
     // Premium tier 커밋 직후에만 main-server에 이번 주차 유료 예상번호 20개 추가 발급을 요청한다.
     // tier 갱신은 이미 커밋되어 성공이 확정된 상태이므로, 이 블록의 어떤 오류도
     // 바깥 catch로 전파되어 이미 성공한 결제를 실패 응답으로 덮어써서는 안 된다.
-    let reissued = false;
     if (expiryTimeMillis) {
       try {
         const [userRows] = await pool.execute<RowDataPacket[]>(
@@ -114,15 +113,14 @@ export async function POST(req: NextRequest) {
         );
         const phone = userRows[0]?.phone as string | undefined;
         if (phone) {
-          const result = await requestExpectNumberReissue(email, phone);
-          reissued = result.reissued;
+          await requestExpectNumberIssuance(email, phone);
         }
       } catch (e) {
-        console.error('main-server 재발급 연동 오류 (tier 갱신에는 영향 없음):', e);
+        console.error('main-server 예상번호 발급 동기화 오류 (tier 갱신에는 영향 없음):', e);
       }
     }
 
-    return NextResponse.json({ success: true, message: '영수증이 저장되었습니다.', expiryTimeMillis, reissued });
+    return NextResponse.json({ success: true, message: '영수증이 저장되었습니다.', expiryTimeMillis });
   } catch (error) {
     console.error('영수증 저장 오류:', error);
     return NextResponse.json({ success: false, message: '서버 오류가 발생했습니다.' }, { status: 500 });

@@ -16,7 +16,7 @@ The production `T_EXPECT_PICK` schema change was reported as already applied out
 - When `pay_expect` contains the paid JSON, the endpoint appends its 20 sets and returns 30 through the unchanged Android `{ status, count, lotto }` contract.
 - The endpoint also accepts SQL `NULL` as base-only during rollout compatibility, but the main server must write `$$` for new Free-issued rows.
 - The row represents entitlement at issuance time. A tier change later in the week does not alter the response for that row.
-- A mid-week Free-to-Premium reissue should populate `pay_expect`; it must not replace the 10-set `pick_expect` base allocation.
+- A mid-week Free-to-Premium issuance-sync operation should populate `pay_expect`; it must not replace the 10-set `pick_expect` base allocation.
 
 ### Rollout verification
 

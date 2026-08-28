@@ -76,13 +76,13 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 
 | Method | Path | 설명 | 비고 |
 |--------|------|------|------|
-| POST | `/api/billing/receipt` | Google Play 영수증 저장 | `{ orderId, productId, purchaseToken, purchaseTime, autoRenewing, email }` → 응답에 `reissued: boolean` 포함 |
+| POST | `/api/billing/receipt` | Google Play 영수증 저장 | `{ orderId, productId, purchaseToken, purchaseTime, autoRenewing, email }` |
 | POST | `/api/billing/subscription` | 구독 상태 조회 | `{ purchaseToken, productId }` |
 | POST | `/api/billing/pubsub` | RTDN Pub/Sub 수신 웹훅 | `?token=PUBSUB_SECRET_TOKEN` |
 
 `/api/lotto/expect`는 `T_EXPECT_PICK.pick_expect`의 기본 10개를 항상 반환한다. 무료 발급행의 `pay_expect` 값은 `$$`이며, 유료 JSON이 저장된 경우에만 추가 20개를 뒤에 합쳐 기존 `{ status, count, lotto }` 형식으로 30개를 반환한다. 발급 후 주중에 구독이 취소되거나 만료되어도 저장된 유료 JSON은 그대로 제공하며, 다음 주차 발급 때 main-server가 최신 tier를 다시 적용한다.
 
-`/api/billing/receipt`는 Premium tier 갱신을 커밋한 직후, 같은 Gabia VM 내부의 legacy main-server(`http://127.0.0.1:10907/lotto/1077`, `MAIN_SERVER_REISSUE_URL`로 override 가능)를 호출해 이번 주차의 유료 20개(`pay_expect`) 추가 발급을 요청한다. `reissued: true`일 때만 앱이 로컬 캐시를 비우고 재발급을 안내해야 한다. main-server 호출 실패는 이미 커밋된 tier 갱신에 영향을 주지 않고 `reissued: false`로 응답한다.
+`/api/billing/receipt`는 Premium tier 갱신을 커밋한 직후, 같은 Gabia VM 내부의 legacy main-server(`http://127.0.0.1:10907/lotto/1077`, 환경변수 `MAIN_SERVER_REISSUE_URL`로 override 가능)를 호출해 이번 주차의 유료 20개(`pay_expect`) 추가 발급을 요청한다. main-server 호출 실패는 이미 커밋된 tier 갱신이나 영수증 응답에 영향을 주지 않는다.
 
 ## 응답 코드
 
