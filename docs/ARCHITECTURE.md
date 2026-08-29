@@ -27,6 +27,9 @@ The architecture should stay small and explicit. Route handlers expose the API c
 │   │   │   ├── send/route.ts           # Server-authorized push send endpoint
 │   │   │   ├── token/route.ts          # User FCM token registration
 │   │   │   └── user/route.ts           # User FCM token removal
+│   │   ├── email/
+│   │   │   ├── send-code/route.ts       # Daum SMTP verification-code delivery
+│   │   │   └── verify-code/route.ts     # Code verification and one-time proof issuance
 │   │   ├── lotto/
 │   │   │   ├── expect/route.ts         # Base and paid expected-number lookup endpoint
 │   │   │   ├── stats/route.ts          # Per-round grade/combination count stats endpoint
@@ -41,8 +44,10 @@ The architecture should stay small and explicit. Route handlers expose the API c
 ├── lib/
 │   ├── db.ts                           # MySQL pool and timezone behavior
 │   ├── firebaseAdmin.ts                # Firebase Admin initialization
+│   ├── email.ts                        # Daum SMTP transport and message delivery
 │   ├── googlePlayApi.ts                # Google Play API integration
-│   └── mainServer.ts                   # Loopback call to legacy main-server (expect-number issuance sync)
+│   ├── mainServer.ts                   # Loopback call to legacy main-server (expect-number issuance sync)
+│   └── verificationStore.ts            # In-memory code, rate-limit, and registration-proof lifecycle
 └── docs/
     ├── PRD.md
     ├── ARCHITECTURE.md
@@ -73,6 +78,31 @@ MySQL is the durable state store. Schema-affecting work must be documented in `d
 `T_EXPECT_PICK` separates issuance-time allocations. `pick_expect` is the 10-set base allocation for every user. `pay_expect` stores `$$` for a Free-issued row or the 20-set paid JSON created when the main server sees Premium tier at issuance time. The lookup path treats the stored row as authoritative for that week instead of re-checking current tier, so a mid-week downgrade does not revoke already-issued numbers (ADR-010).
 
 KST is the project default for app-level date interpretation. When Google Play returns epoch milliseconds or UTC timestamps, keep provider values precise and convert only at the app boundary where needed.
+
+## Verified Sign-Up Flow
+
+```text
+Android client requests a code
+  -> POST /api/email/send-code
+  -> backend validates and normalizes the email
+  -> backend applies the per-email send limit
+  -> backend sends a six-digit code through Daum SMTP
+  -> the in-memory store keeps the code for five minutes
+
+Android client submits the code
+  -> POST /api/email/verify-code
+  -> backend applies expiry and five-attempt checks
+  -> backend consumes the code and returns a one-time verificationToken
+  -> only the token hash, normalized email, and 30-minute expiry remain in memory
+
+Android client registers
+  -> POST /api/users/register with verificationToken
+  -> backend claims a matching, live proof
+  -> backend preserves the existing duplicate checks and inserts T_USER_INFO
+  -> backend consumes the proof only after the insert succeeds
+```
+
+This is a registration gate, not a login session. Codes, proof tokens, and SMTP secrets must never be logged or returned outside their defined success response. The in-memory contract depends on the current single PM2 process; a restart intentionally invalidates pending verification state.
 
 ## Payment And Subscription Flow
 

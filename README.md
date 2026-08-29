@@ -41,6 +41,14 @@ FCM_SEND_API_KEY=
 # 결제 & Pub/Sub
 PUBSUB_SECRET_TOKEN=
 GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
+
+# 이메일 인증 (Daum SMTP)
+SMTP_HOST=smtp.daum.net
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM_NAME=어부로또
 ```
 
 ## API 엔드포인트
@@ -49,10 +57,19 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 
 | Method | Path | 설명 | 비고 |
 |--------|------|------|------|
-| POST | `/api/users/register` | 유저 등록 | `{ name, email, phone, birth }` |
+| POST | `/api/users/register` | 이메일 인증 후 유저 등록 | `{ name, email, phone, birth, verificationToken }` |
 | POST | `/api/users/login` | 로그인 / 유저 조회 | `{ email, phone }` |
 | GET | `/api/users` | 유저 조회 (내부용) | `?email=xxx` |
 | POST | `/api/users/withdraw` | 회원탈퇴 | `{ email, phone }` — hard delete |
+
+### 이메일 인증
+
+| Method | Path | 설명 | 비고 |
+|--------|------|------|------|
+| POST | `/api/email/send-code` | 6자리 인증코드 발송 | `{ email }`, 코드 유효기간 5분 |
+| POST | `/api/email/verify-code` | 인증코드 검증 | `{ email, code }` → `{ status, verificationToken }` |
+
+`verificationToken`은 회원가입 요청에 한 번만 사용한다. 서버는 원문 대신 SHA-256 해시를 단일 PM2 프로세스 메모리에 최대 30분 보관하고, 회원가입 성공 시 즉시 폐기한다. 앱은 이 값을 회원가입 화면 상태에만 보관하며 로그인 토큰으로 사용하지 않는다.
 
 > tier 변경 전용 엔드포인트는 없다. `T_USER_INFO.tier`/`valid_date`는 Google Play 검증을 거친 `/api/billing/receipt`와 `/api/billing/pubsub`에서만 갱신한다 (ADR-009).
 
@@ -95,6 +112,10 @@ GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 | 8655 | 서버/DB 오류 |
 | 8677 | 요청 필드 오류 |
 | 8699 | 유저 정보 없음 |
+| 8700 | 이메일 인증코드 발송 제한 초과 |
+| 8701 | 인증코드 불일치 또는 만료 |
+| 8702 | 인증코드 검증 횟수 초과 |
+| 8703 | 회원가입용 이메일 인증 증명 없음/만료/불일치 |
 
 ## DB 테이블
 

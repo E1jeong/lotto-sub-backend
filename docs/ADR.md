@@ -197,3 +197,21 @@ The stored row records issuance-time entitlement. The lookup endpoint does not r
 - Android must not estimate expiry or treat a failed provider check as Premium.
 - A duplicate token belonging to the same stored account is revalidated and can repair that account's local tier; it never rebinds to another email.
 - Account transfer remains out of scope until authenticated account ownership is available.
+
+---
+
+## ADR-013: Require A One-Time Email Proof Before Registration
+
+**Status**: Accepted
+
+**Decision**: Send five-minute, six-digit sign-up codes through Daum SMTP and require the successful verification result as a one-time `verificationToken` on `POST /api/users/register`. Keep code and proof lifecycle state in the current single PM2 Node.js process. Store only a SHA-256 hash of the random proof token, expire unused proofs after 30 minutes, and consume a proof only after user insertion succeeds.
+
+**Context**: The Android sign-up flow needs to prove email ownership without introducing a password, JWT, or general login-session system. A process-global in-memory store is the smallest fit for the current single-process deployment and avoids a DB migration. A plain `email -> verified` flag would allow another request that knows the address to reuse the completed verification, so registration also carries an unguessable one-time proof.
+
+**Consequences**:
+
+- `POST /api/email/send-code` and `POST /api/email/verify-code` become the only paths that create sign-up verification state.
+- The Android app keeps `verificationToken` only in sign-up ViewModel/UI memory and sends it once with the sub-backend registration request; it does not persist or treat it as a login credential.
+- Server restart or future multi-process deployment invalidates or partitions pending state. Moving to multiple processes requires replacing the store with a shared DB or Redis implementation before rollout.
+- Registration failures retain the claimed proof for correction and retry until expiry; a successful insert consumes it immediately.
+- Passwords, JWTs, server login sessions, account recovery, and authorization hardening remain separate work.
