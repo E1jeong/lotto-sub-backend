@@ -5,10 +5,9 @@
 - This guide is a navigation aid and execution safety guard, not a history archive.
 - The Obsidian wiki at vault-relative `Dev/Project/Personal/lotto-sub-backend` is the single source of truth for business context, DB contracts, payment flows, deployment details, and decision history. Resolve the vault through `_meta/routing-tables.md` or `obsidian-wiki-sync`, never a hardcoded file URL.
 - Before resuming work or making non-trivial changes, follow the mandatory read order:
-  1. `README.md` (Wiki entrypoint)
-  2. `handoff.md` (Current state and unresolved blockers)
-  3. `schema.md` (Project maintenance and evidence rules)
-  4. `index.md` (Task navigation)
+  1. `handoff.md` (Current state and unresolved blockers)
+  2. `schema.md` (Project maintenance and evidence rules)
+  3. `index.md` (Task navigation)
 - Read `issues/needs-verification.md` when the task touches an unsettled claim or verification gap.
 - Before multi-step or resumed implementation, ground the wiki context against live code, propose `step → verify` checkpoints, and confirm them before editing.
 - Communicate in Korean for explanations and report completion status in Korean.
