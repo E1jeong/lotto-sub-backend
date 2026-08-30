@@ -214,4 +214,5 @@ The stored row records issuance-time entitlement. The lookup endpoint does not r
 - The Android app keeps `verificationToken` only in sign-up ViewModel/UI memory and sends it once with the sub-backend registration request; it does not persist or treat it as a login credential.
 - Server restart or future multi-process deployment invalidates or partitions pending state. Moving to multiple processes requires replacing the store with a shared DB or Redis implementation before rollout.
 - Registration failures retain the claimed proof for correction and retry until expiry; a successful insert consumes it immediately.
+- Successful registration triggers the legacy main-server `/lotto/1022` loopback request to initialize Free-tier expected numbers in an isolated `try/catch` block, without affecting the registration response.
 - Passwords, JWTs, server login sessions, account recovery, and authorization hardening remain separate work.

@@ -26,6 +26,7 @@ flowchart TD
     
     subgraph NextJS["Next.js App Router (app/api/)"]
         AuthRoute["Users & Auth<br/>/api/users/*"]
+        EmailRoute["Email Verification<br/>/api/email/*"]
         BillingRoute["Billing & Webhooks<br/>/api/billing/*"]
         LottoRoute["Lotto Data<br/>/api/lotto/*"]
         FCMRoute["Push Messaging<br/>/api/fcm/*"]
@@ -36,6 +37,8 @@ flowchart TD
         PlayLib["Google Play Developer API<br/>(lib/googlePlayApi.ts)"]
         MainLib["Main Server Loopback<br/>(lib/mainServer.ts)"]
         FCMLib["Firebase Admin SDK<br/>(lib/firebaseAdmin.ts)"]
+        EmailLib["Daum SMTP Transport<br/>(lib/email.ts)"]
+        StoreLib["Verification Store<br/>(lib/verificationStore.ts)"]
     end
     
     subgraph External["External Services & Storage"]
@@ -43,16 +46,23 @@ flowchart TD
         PlayAPI["Google Play Developer API"]
         PubSub["Google Cloud Pub/Sub (RTDN)"]
         FCMServer["Firebase Cloud Messaging"]
-        MainServer["Legacy Main Server (:10907/lotto/1077)"]
+        MainServer["Legacy Main Server (:10907/lotto/1077, 1022)"]
+        SMTP["Daum SMTP (smtp.daum.net:465)"]
     end
     
     Client -->|REST API| AuthRoute
+    Client -->|Send Code / Verify| EmailRoute
     Client -->|Receipt / Status| BillingRoute
     Client -->|Expect / Winning / Stats| LottoRoute
     Client -->|Token Register / Remove| FCMRoute
     PubSub -->|Webhook POST| BillingRoute
     
+    EmailRoute --> StoreLib
+    EmailRoute --> EmailLib
+    EmailLib --> SMTP
+    AuthRoute --> StoreLib
     AuthRoute --> DBLib
+    AuthRoute -.->|Post-insert Free Issuance Sync| MainLib
     BillingRoute --> PlayLib
     BillingRoute --> DBLib
     BillingRoute -.->|Post-commit Paid Issuance Sync| MainLib
@@ -70,8 +80,9 @@ flowchart TD
 | Domain | Guide / Primary Entry | Ownership & Responsibility | Key Integrations | Related Wiki Topics |
 | :--- | :--- | :--- | :--- | :--- |
 | **Billing & Subscriptions** | `app/api/billing/receipt/route.ts` | Google Play receipt verification, RTDN Pub/Sub webhook, subscription verification | `lib/googlePlayApi.ts`, `lib/db.ts` | `technical/architecture.md`, `technical/payment-implementation-history.md`, `issues/payment-gaps.md` |
+| **Email Verification** | `app/api/email/send-code/route.ts` | 6-digit code issuance via Daum SMTP, code verification, 1-time proof token lifecycle | `lib/email.ts`, `lib/verificationStore.ts` | `technical/email-verification-design.md`, `docs/ADR.md` (ADR-013) |
 | **Lotto Data & Issuance** | `app/api/lotto/expect/route.ts` | Base (10) and paid (20) expected number lookups, round winning numbers, stats | `lib/db.ts`, `lib/mainServer.ts` | `technical/DB.md`, `technical/design-decisions.md` (ADR-008, ADR-010) |
-| **Users & Authentication** | `app/api/users/login/route.ts` | User registration, login, withdrawal, user profile lookup | `lib/db.ts` (`T_USER_INFO`) | `issues/security-and-auth-gaps.md`, `docs/ARCHITECTURE.md` |
+| **Users & Authentication** | `app/api/users/login/route.ts` | User registration (proof-gated), login, withdrawal, user profile lookup | `lib/db.ts` (`T_USER_INFO`), `lib/verificationStore.ts`, `lib/mainServer.ts` | `issues/security-and-auth-gaps.md`, `docs/ARCHITECTURE.md` |
 | **FCM Push Messaging** | `app/api/fcm/send/route.ts` | User device token registration/removal, server-authorized push sending | `lib/firebaseAdmin.ts`, `lib/db.ts` | `technical/sourcemap.md`, `technical/architecture.md` |
 | **Database & Infrastructure** | `lib/db.ts` | MySQL connection pool (`mysql2/promise`), transaction helper, KST time default | MySQL (`T_USER_INFO`, `T_PURCHASES`, `T_EXPECT_PICK`) | `technical/DB.md`, `docs/MIGRATION.md` |
 
@@ -80,21 +91,22 @@ flowchart TD
 | Request Concern | Read First in Wiki | First Source Path | Then Trace |
 | :--- | :--- | :--- | :--- |
 | **Google Play Receipt Verification** | `technical/architecture.md`<br>`issues/payment-gaps.md` | `app/api/billing/receipt/route.ts` | `lib/googlePlayApi.ts` → `lib/db.ts` (`T_PURCHASES`, `T_USER_INFO`) → `lib/mainServer.ts` (`requestExpectNumberIssuance`) |
-| **Google Play RTDN Pub/Sub Webhook** | `technical/architecture.md`<br>`issues/payment-gaps.md` | `app/api/billing/pubsub/route.ts` | `lib/googlePlayApi.ts` (`updateUserTierByToken`) → `lib/firebaseAdmin.ts` (`sendNotificationToUser`) |
+| **Google Play RTDN Pub/Sub Webhook** | `technical/architecture.md`<br>`issues/payment-gaps.md` | `app/api/billing/pubsub/route.ts` | `lib/googlePlayApi.ts` (`syncUserEntitlementByToken`) → `lib/firebaseAdmin.ts` (`sendFcmToUser`) |
+| **Email Verification & Sign-Up Proof** | `technical/email-verification-design.md`<br>`docs/ADR.md` (ADR-013) | `app/api/email/send-code/route.ts` | `app/api/email/verify-code/route.ts` → `lib/verificationStore.ts` → `lib/email.ts` |
 | **Expected Numbers (10/30 Split)** | `technical/DB.md`<br>`docs/ADR.md` (ADR-010) | `app/api/lotto/expect/route.ts` | `lib/db.ts` (`T_EXPECT_PICK.pick_expect`, `pay_expect`) → Android response `{ count, lotto }` |
-| **User Login & Withdrawal** | `issues/security-and-auth-gaps.md` | `app/api/users/login/route.ts` | `app/api/users/withdraw/route.ts` → `lib/db.ts` (`T_USER_INFO`) |
+| **User Login, Registration & Withdrawal** | `issues/security-and-auth-gaps.md`<br>`technical/email-verification-design.md` | `app/api/users/login/route.ts` | `app/api/users/register/route.ts` → `lib/verificationStore.ts` → `lib/mainServer.ts` (`requestInitialExpectNumberIssuance`) → `app/api/users/withdraw/route.ts` |
 | **FCM Push Notification & Tokens** | `technical/sourcemap.md` | `app/api/fcm/token/route.ts` | `app/api/fcm/send/route.ts` → `lib/firebaseAdmin.ts` (`admin.messaging()`) |
-| **Main-Server Expect-Number Issuance Sync** | `technical/design-decisions.md` (ADR-008, ADR-011) | `lib/mainServer.ts` | `app/api/billing/receipt/route.ts` → `POST :10907/lotto/1077` |
+| **Main-Server Expect-Number Issuance Sync** | `technical/design-decisions.md` (ADR-008, ADR-011) | `lib/mainServer.ts` | `app/api/billing/receipt/route.ts` (`POST :10907/lotto/1077`), `app/api/users/register/route.ts` (`POST :10907/lotto/1022`) |
 | **Server Deployment & PM2** | `operations/deployment.md` | `.github/workflows/deploy.yml` | Gabia Cloud PM2 restart & smoke test |
 
 ## Immutable Boundaries and Change Gates
 
 1. **Zero-Trust Client Payment Gate**: Never trust client-supplied tier or payment values. Verify receipt/subscription state server-side with Google Play Developer API before granting `tier = 1`. `POST /api/users/tier` is permanently deleted (ADR-009) and must never be reintroduced.
 2. **Atomic DB Mutation Gate**: Multi-table billing mutations (`T_PURCHASES INSERT` + `T_USER_INFO UPDATE`) must execute inside a MySQL transaction (`connection.beginTransaction()`, `commit()`, `rollback()`, `release()`).
-3. **Side-Effect Isolation Gate**: Non-critical network side-effects (FCM push, external main-server loopback `POST /lotto/1077`) must execute strictly outside the DB transaction in isolated `try/catch` blocks. Failures must never roll back or fake-fail an already-committed payment.
+3. **Side-Effect Isolation Gate**: Non-critical network side-effects (FCM push, external main-server loopback `POST /lotto/1077`, `POST /lotto/1022`) must execute strictly outside the DB transaction in isolated `try/catch` blocks. Failures must never roll back or fake-fail an already-committed payment or registration.
 4. **Error & Secret Masking Gate**: Never expose DB error messages, SQL exceptions, stack traces, private keys (`FIREBASE_PRIVATE_KEY`), Google service account credentials, or API tokens in API responses.
 5. **KST Timezone Invariant Gate**: All application-level date calculations and DB date strings (`valid_date`, `create_time`, etc.) must be strictly interpreted in Korea Standard Time (KST, `+09:00`). Convert Google Play epoch ms/UTC only at ingress/egress boundaries.
-6. **Android Client Contract Compatibility Gate**: Preserve Android Lotto Protocol status codes (e.g. `8200`, `8400`, `8611`, `8633`, `8655`, `8677`, `8699`) and backward-compatible JSON shapes. Never alter endpoint contracts without explicit client coordination.
+6. **Android Client Contract Compatibility Gate**: Preserve Android Lotto Protocol status codes (e.g. `8200`, `8400`, `8611`, `8633`, `8655`, `8677`, `8699`, `8700`, `8701`, `8702`, `8703`) and backward-compatible JSON shapes. Never alter endpoint contracts without explicit client coordination.
 7. **Non-Destructive DB Gate**: Never perform destructive DDL/DML operations (`DROP`, `TRUNCATE`). All schema updates must coordinate with shared DB users and be documented in `docs/MIGRATION.md` and `docs/ADR.md`.
 
 ## Build and Verification

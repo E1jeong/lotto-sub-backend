@@ -100,9 +100,10 @@ Android client registers
   -> backend claims a matching, live proof
   -> backend preserves the existing duplicate checks and inserts T_USER_INFO
   -> backend consumes the proof only after the insert succeeds
-```
+  -> backend calls legacy main-server (loopback only, `POST /lotto/1022`, `lib/mainServer.ts`) to request initial 10-set expected number issuance
+  -> backend returns { status: "8200" }
 
-This is a registration gate, not a login session. Codes, proof tokens, and SMTP secrets must never be logged or returned outside their defined success response. The in-memory contract depends on the current single PM2 process; a restart intentionally invalidates pending verification state.
+This is a registration gate, not a login session. Codes, proof tokens, and SMTP secrets must never be logged or returned outside their defined success response. The in-memory contract depends on the current single PM2 process; a restart intentionally invalidates pending verification state. The post-registration main-server issuance call (`/lotto/1022`) runs in an isolated try/catch block so a transient loopback failure never rolls back or fails user registration.
 
 ## Payment And Subscription Flow
 

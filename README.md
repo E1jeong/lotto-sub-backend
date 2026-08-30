@@ -99,6 +99,8 @@ SMTP_FROM_NAME=어부로또
 
 `/api/lotto/expect`는 `T_EXPECT_PICK.pick_expect`의 기본 10개를 항상 반환한다. 무료 발급행의 `pay_expect` 값은 `$$`이며, 유료 JSON이 저장된 경우에만 추가 20개를 뒤에 합쳐 기존 `{ status, count, lotto }` 형식으로 30개를 반환한다. 발급 후 주중에 구독이 취소되거나 만료되어도 저장된 유료 JSON은 그대로 제공하며, 다음 주차 발급 때 main-server가 최신 tier를 다시 적용한다.
 
+`/api/users/register`는 유저 등록(`T_USER_INFO`) 및 인증 증명 소비가 성공한 직후, legacy main-server(`http://127.0.0.1:10907/lotto/1022`, 환경변수 `MAIN_SERVER_REGISTER_URL`로 override 가능)를 호출해 신규 가입 사용자의 초기 무료 예상번호 10개(`pick_expect`) 발급을 요청한다. main-server는 DB 저장은 건너뛰고 번호 발급만 수행하며, main-server 호출 실패는 회원가입 성공 응답에 영향을 주지 않는다.
+
 `/api/billing/receipt`는 Premium tier 갱신을 커밋한 직후, 같은 Gabia VM 내부의 legacy main-server(`http://127.0.0.1:10907/lotto/1077`, 환경변수 `MAIN_SERVER_REISSUE_URL`로 override 가능)를 호출해 이번 주차의 유료 20개(`pay_expect`) 추가 발급을 요청한다. main-server 호출 실패는 이미 커밋된 tier 갱신이나 영수증 응답에 영향을 주지 않는다.
 
 ## 응답 코드
