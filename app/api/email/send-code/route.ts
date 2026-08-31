@@ -4,6 +4,7 @@ import {
   finishSend,
   generateVerificationCode,
   isValidEmail,
+  isVerificationPurpose,
   normalizeEmail,
   reserveSend,
   storeVerificationCode,
@@ -19,7 +20,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: '8677' });
   }
 
-  if (!body || typeof body !== 'object' || !('email' in body) || !isValidEmail(body.email)) {
+  if (
+    !body
+    || typeof body !== 'object'
+    || !('email' in body)
+    || !('purpose' in body)
+    || !isValidEmail(body.email)
+    || !isVerificationPurpose(body.purpose)
+  ) {
     return NextResponse.json({ status: '8677' });
   }
 
@@ -31,7 +39,7 @@ export async function POST(req: NextRequest) {
   try {
     const code = generateVerificationCode();
     await sendVerificationEmail(email, code);
-    storeVerificationCode(email, code);
+    storeVerificationCode(email, code, body.purpose);
     return NextResponse.json({ status: '8200' });
   } catch {
     console.error('이메일 인증 메일 발송 실패');

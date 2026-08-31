@@ -18,8 +18,9 @@ The highest-priority product outcome is that paid access is granted, maintained,
 
 ## Core Product Requirements
 1. User API compatibility & Verified Sign-Up
-   - Require 6-digit email verification code delivery (Daum SMTP) and a one-time proof token before user registration.
+   - Require a purpose-bound 6-digit email verification code delivery (Daum SMTP) and a one-time proof token before user registration or account recovery.
    - On successful user registration, trigger the legacy main-server (`POST /lotto/1022`) loopback request to initialize Free-tier expected numbers.
+   - Recover an existing account only when a recovery-purpose email proof and the registered email-plus-phone pair match; return only the local-profile fields required by Android.
    - Preserve existing Android request and response contracts.
    - Keep Lotto Protocol status codes stable unless the Android client is updated intentionally.
 

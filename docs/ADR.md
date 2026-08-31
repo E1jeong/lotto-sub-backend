@@ -216,3 +216,20 @@ The stored row records issuance-time entitlement. The lookup endpoint does not r
 - Registration failures retain the claimed proof for correction and retry until expiry; a successful insert consumes it immediately.
 - Successful registration triggers the legacy main-server `/lotto/1022` loopback request to initialize Free-tier expected numbers in an isolated `try/catch` block, without affecting the registration response.
 - Passwords, JWTs, server login sessions, account recovery, and authorization hardening remain separate work.
+
+---
+
+## ADR-014: Bind Email Proofs To Registration Or Account Recovery
+
+**Status**: Accepted
+
+**Decision**: Require an explicit `purpose` (`registration` or `recovery`) on every email-code send and verification request. The server records that purpose on the resulting one-time proof. `POST /api/users/register` accepts only registration proofs, while `POST /api/users/recover` accepts only recovery proofs.
+
+**Context**: Existing-account recovery restores a profile after reinstall or device change but is not a password or session mechanism. Without a purpose-bound proof, a token issued for registration could authorize recovery of an existing account. Requiring the field rather than defaulting it prevents an ambiguous client contract; the Android app has not been released with this API contract.
+
+**Consequences**:
+
+- Both Android email requests must explicitly send `purpose: "registration"` for sign-up and `purpose: "recovery"` for recovery.
+- Recovery validates the normalized email and phone as one database predicate, returns only `name`, `email`, `birth`, `phone`, and tier as `FREE` or `PREMIUM`, and consumes its proof only after a matching row is found.
+- Invalid, expired, reused, or wrong-purpose proofs return existing status `8703`; a non-matching email-and-phone pair returns existing status `8699` without revealing either field independently.
+- Recovery cannot accept or set tier, purchase, subscription, FCM, or other entitlement data. Android refreshes entitlement through its existing Google Play flow after local-profile restoration.

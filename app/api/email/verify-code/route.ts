@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   isValidEmail,
+  isVerificationPurpose,
   normalizeEmail,
   verifyCode,
 } from '@/lib/verificationStore';
@@ -20,15 +21,17 @@ export async function POST(req: NextRequest) {
     || typeof body !== 'object'
     || !('email' in body)
     || !('code' in body)
+    || !('purpose' in body)
     || !isValidEmail(body.email)
     || typeof body.code !== 'string'
     || !/^\d{6}$/.test(body.code)
+    || !isVerificationPurpose(body.purpose)
   ) {
     return NextResponse.json({ status: '8677' });
   }
 
   try {
-    const result = verifyCode(normalizeEmail(body.email), body.code);
+    const result = verifyCode(normalizeEmail(body.email), body.code, body.purpose);
     if (result.status === 'attempts_exceeded') {
       return NextResponse.json({ status: '8702' });
     }

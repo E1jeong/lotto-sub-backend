@@ -6,14 +6,19 @@ const MAX_SENDS_PER_WINDOW = 5;
 const MAX_VERIFICATION_ATTEMPTS = 5;
 const PROOF_TTL_MS = 30 * 60 * 1000;
 
+export const VERIFICATION_PURPOSES = ['registration', 'recovery'] as const;
+export type VerificationPurpose = (typeof VERIFICATION_PURPOSES)[number];
+
 interface CodeRecord {
   code: string;
+  purpose: VerificationPurpose;
   expiresAt: number;
   failedAttempts: number;
 }
 
 interface ProofRecord {
   email: string;
+  purpose: VerificationPurpose;
   expiresAt: number;
   inUse: boolean;
 }
@@ -52,6 +57,10 @@ export function isValidEmail(value: unknown): value is string {
 
   const email = normalizeEmail(value);
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export function isVerificationPurpose(value: unknown): value is VerificationPurpose {
+  return value === 'registration' || value === 'recovery';
 }
 
 export function reserveSend(email: string) {
@@ -93,10 +102,14 @@ export function generateVerificationCode() {
   return randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
-export function storeVerificationCode(email: string, code: string) {
+export function storeVerificationCode(
+  email: string,
+  code: string,
+  purpose: VerificationPurpose
+) {
   const expiresAt = Date.now() + CODE_TTL_MS;
 
-  state.codes.set(email, { code, expiresAt, failedAttempts: 0 });
+  state.codes.set(email, { code, purpose, expiresAt, failedAttempts: 0 });
   setTimeout(() => {
     const current = state.codes.get(email);
     if (current?.code === code && current.expiresAt <= Date.now()) {
@@ -116,7 +129,7 @@ function codesMatch(actual: string, supplied: string) {
     && timingSafeEqual(actualBuffer, suppliedBuffer);
 }
 
-function issueRegistrationProof(email: string) {
+function issueVerificationProof(email: string, purpose: VerificationPurpose) {
   for (const [tokenHash, proof] of state.proofs) {
     if (proof.email === email) {
       state.proofs.delete(tokenHash);
@@ -127,7 +140,7 @@ function issueRegistrationProof(email: string) {
   const tokenHash = hashToken(verificationToken);
   const expiresAt = Date.now() + PROOF_TTL_MS;
 
-  state.proofs.set(tokenHash, { email, expiresAt, inUse: false });
+  state.proofs.set(tokenHash, { email, purpose, expiresAt, inUse: false });
   setTimeout(() => {
     const current = state.proofs.get(tokenHash);
     if (current && current.expiresAt <= Date.now()) {
@@ -138,14 +151,18 @@ function issueRegistrationProof(email: string) {
   return verificationToken;
 }
 
-export function verifyCode(email: string, suppliedCode: string): CodeVerificationResult {
+export function verifyCode(
+  email: string,
+  suppliedCode: string,
+  purpose: VerificationPurpose
+): CodeVerificationResult {
   const record = state.codes.get(email);
   if (!record || record.expiresAt <= Date.now()) {
     state.codes.delete(email);
     return { status: 'invalid' };
   }
 
-  if (!codesMatch(record.code, suppliedCode)) {
+  if (record.purpose !== purpose || !codesMatch(record.code, suppliedCode)) {
     record.failedAttempts += 1;
     if (record.failedAttempts >= MAX_VERIFICATION_ATTEMPTS) {
       state.codes.delete(email);
@@ -158,18 +175,28 @@ export function verifyCode(email: string, suppliedCode: string): CodeVerificatio
   state.codes.delete(email);
   return {
     status: 'verified',
-    verificationToken: issueRegistrationProof(email),
+    verificationToken: issueVerificationProof(email, purpose),
   };
 }
 
-export function claimRegistrationProof(email: string, token: unknown) {
+function claimVerificationProof(
+  email: string,
+  token: unknown,
+  purpose: VerificationPurpose
+) {
   if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
     return null;
   }
 
   const tokenHash = hashToken(token);
   const proof = state.proofs.get(tokenHash);
-  if (!proof || proof.email !== email || proof.expiresAt <= Date.now() || proof.inUse) {
+  if (
+    !proof
+    || proof.email !== email
+    || proof.purpose !== purpose
+    || proof.expiresAt <= Date.now()
+    || proof.inUse
+  ) {
     if (proof?.expiresAt && proof.expiresAt <= Date.now()) {
       state.proofs.delete(tokenHash);
     }
@@ -180,7 +207,7 @@ export function claimRegistrationProof(email: string, token: unknown) {
   return tokenHash;
 }
 
-export function releaseRegistrationProof(tokenHash: string) {
+function releaseVerificationProof(tokenHash: string) {
   const proof = state.proofs.get(tokenHash);
   if (proof && proof.expiresAt > Date.now()) {
     proof.inUse = false;
@@ -189,6 +216,30 @@ export function releaseRegistrationProof(tokenHash: string) {
   }
 }
 
-export function consumeRegistrationProof(tokenHash: string) {
+function consumeVerificationProof(tokenHash: string) {
   state.proofs.delete(tokenHash);
+}
+
+export function claimRegistrationProof(email: string, token: unknown) {
+  return claimVerificationProof(email, token, 'registration');
+}
+
+export function releaseRegistrationProof(tokenHash: string) {
+  releaseVerificationProof(tokenHash);
+}
+
+export function consumeRegistrationProof(tokenHash: string) {
+  consumeVerificationProof(tokenHash);
+}
+
+export function claimRecoveryProof(email: string, token: unknown) {
+  return claimVerificationProof(email, token, 'recovery');
+}
+
+export function releaseRecoveryProof(tokenHash: string) {
+  releaseVerificationProof(tokenHash);
+}
+
+export function consumeRecoveryProof(tokenHash: string) {
+  consumeVerificationProof(tokenHash);
 }

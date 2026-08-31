@@ -37,6 +37,7 @@ The architecture should stay small and explicit. Route handlers expose the API c
 │   │   └── users/
 │   │       ├── route.ts                # User lookup
 │   │       ├── login/route.ts
+│   │       ├── recover/route.ts        # Email-proof account recovery
 │   │       ├── register/route.ts
 │   │       └── withdraw/route.ts
 │   ├── layout.tsx
@@ -47,7 +48,7 @@ The architecture should stay small and explicit. Route handlers expose the API c
 │   ├── email.ts                        # Daum SMTP transport and message delivery
 │   ├── googlePlayApi.ts                # Google Play API integration
 │   ├── mainServer.ts                   # Loopback call to legacy main-server (expect-number issuance sync)
-│   └── verificationStore.ts            # In-memory code, rate-limit, and registration-proof lifecycle
+│   └── verificationStore.ts            # In-memory purpose-bound code, rate-limit, and proof lifecycle
 └── docs/
     ├── PRD.md
     ├── ARCHITECTURE.md
@@ -84,14 +85,14 @@ KST is the project default for app-level date interpretation. When Google Play r
 ```text
 Android client requests a code
   -> POST /api/email/send-code
-  -> backend validates and normalizes the email
+  -> backend validates and normalizes the email and required purpose (`registration`)
   -> backend applies the per-email send limit
   -> backend sends a six-digit code through Daum SMTP
   -> the in-memory store keeps the code for five minutes
 
 Android client submits the code
   -> POST /api/email/verify-code
-  -> backend applies expiry and five-attempt checks
+  -> backend applies expiry, purpose match, and five-attempt checks
   -> backend consumes the code and returns a one-time verificationToken
   -> only the token hash, normalized email, and 30-minute expiry remain in memory
 
@@ -104,6 +105,19 @@ Android client registers
   -> backend returns { status: "8200" }
 
 This is a registration gate, not a login session. Codes, proof tokens, and SMTP secrets must never be logged or returned outside their defined success response. The in-memory contract depends on the current single PM2 process; a restart intentionally invalidates pending verification state. The post-registration main-server issuance call (`/lotto/1022`) runs in an isolated try/catch block so a transient loopback failure never rolls back or fails user registration.
+
+## Existing-Account Recovery Flow
+
+```text
+Android client without a cached profile requests and verifies an email code with purpose `recovery`
+  -> POST /api/users/recover with { email, phone, verificationToken }
+  -> backend claims a matching, live recovery-purpose proof
+  -> backend queries one T_USER_INFO row by the normalized email-and-phone pair
+  -> a match consumes the proof and returns only name, email, birth, phone, and tier (`FREE` or `PREMIUM`)
+  -> no match releases the proof so a corrected phone number can retry until expiry
+```
+
+Registration and recovery proofs are purpose-bound and cannot be exchanged. Recovery neither accepts client-supplied entitlement data nor returns FCM, purchase, internal-index, or expiry data. Android restores the returned profile locally, then follows its existing FCM registration and Google Play entitlement-refresh flow.
 
 ## Payment And Subscription Flow
 
