@@ -42,6 +42,13 @@ const NOTIFICATION_TYPE = {
   EXPIRED: 13,
 } as const;
 
+const FCM_DEBOUNCE_MS = 2_000;
+const pendingFcmByEmail = new Map<string, {
+  notificationType: number;
+  isEntitled: boolean;
+  timeout: ReturnType<typeof setTimeout>;
+}>();
+
 async function sendFcmToUser(email: string, title: string, body: string) {
   try {
     const [rows] = await pool.execute<RowDataPacket[]>(
@@ -60,6 +67,43 @@ async function sendFcmToUser(email: string, title: string, body: string) {
   } catch (error) {
     console.error(`[pubsub] FCM 발송 실패 (${email}):`, error);
   }
+}
+
+function getSubscriptionMessage(notificationType: number, isEntitled: boolean) {
+  switch (notificationType) {
+    case NOTIFICATION_TYPE.CANCELED:
+      return '구독 해지 안내: 만료일까지 프리미엄 혜택이 유지됩니다.';
+    case NOTIFICATION_TYPE.EXPIRED:
+      return '구독 만료 안내: 기본 혜택(Free)으로 전환되었습니다.';
+    default:
+      return isEntitled
+        ? '구독 상태가 정상적으로 유지됩니다.'
+        : '구독 상태가 변경되어 기본 혜택으로 전환되었습니다.';
+  }
+}
+
+function scheduleSubscriptionFcm(email: string, notificationType: number, isEntitled: boolean) {
+  const previous = pendingFcmByEmail.get(email);
+  if (previous) {
+    clearTimeout(previous.timeout);
+  }
+
+  const pending = {
+    notificationType,
+    isEntitled,
+    timeout: setTimeout(() => {
+      if (pendingFcmByEmail.get(email) !== pending) return;
+
+      pendingFcmByEmail.delete(email);
+      void sendFcmToUser(
+        email,
+        '구독 상태 안내',
+        getSubscriptionMessage(pending.notificationType, pending.isEntitled),
+      );
+    }, FCM_DEBOUNCE_MS),
+  };
+
+  pendingFcmByEmail.set(email, pending);
 }
 
 export async function POST(req: NextRequest) {
@@ -111,10 +155,7 @@ export async function POST(req: NextRequest) {
         const result = await syncUserEntitlementByToken(purchaseToken, pool);
         console.log(`[pubsub] entitlement 동기화 완료 (type=${notificationType}, state=${result.subscriptionState})`);
         if (result.email) {
-          const message = result.isEntitled
-            ? '구독 상태가 정상적으로 유지됩니다.'
-            : '구독 상태가 변경되어 기본 혜택으로 전환되었습니다.';
-          await sendFcmToUser(result.email, '구독 상태 안내', message);
+          scheduleSubscriptionFcm(result.email, notificationType, result.isEntitled);
         }
         break;
       }

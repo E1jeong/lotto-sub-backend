@@ -166,6 +166,8 @@ Google Play RTDN message
 Rules:
 - Treat RTDN as a signal to verify provider state, not as the full source of truth.
 - The endpoint must tolerate duplicate or delayed notifications.
+- After every provider-state sync, FCM delivery is trailing-debounced for two seconds per mapped email; entitlement persistence is never debounced.
+- The final `CANCELED` event reports that Premium remains through expiry, while the final `EXPIRED` event reports the Free-tier transition.
 - Unknown notification types should be logged safely and ignored or mapped conservatively.
 
 ## Subscription State Model
