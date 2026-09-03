@@ -40,6 +40,7 @@ FCM_SEND_API_KEY=
 
 # 결제 & Pub/Sub
 PUBSUB_SECRET_TOKEN=
+CRON_SECRET_TOKEN=
 GOOGLE_PLAY_PACKAGE_NAME=com.queentech.fisherlotto
 
 # 이메일 인증 (Daum SMTP)
@@ -97,6 +98,7 @@ SMTP_FROM_NAME=어부로또
 | POST | `/api/billing/receipt` | Google Play 영수증 저장 | `{ orderId, productId, purchaseToken, purchaseTime, autoRenewing, email }` |
 | POST | `/api/billing/subscription` | 구독 상태 조회 | `{ purchaseToken, productId }` |
 | POST | `/api/billing/pubsub` | RTDN Pub/Sub 수신 웹훅 | `?token=PUBSUB_SECRET_TOKEN` |
+| POST | `/api/billing/reconcile` | KST 기준 만료 Premium tier 정리 | `Authorization: Bearer CRON_SECRET_TOKEN` |
 
 `/api/lotto/expect`는 `T_EXPECT_PICK.pick_expect`의 기본 10개를 항상 반환한다. 무료 발급행의 `pay_expect` 값은 `$$`이며, 유료 JSON이 저장된 경우에만 추가 20개를 뒤에 합쳐 기존 `{ status, count, lotto }` 형식으로 30개를 반환한다. 발급 후 주중에 구독이 취소되거나 만료되어도 저장된 유료 JSON은 그대로 제공하며, 다음 주차 발급 때 main-server가 최신 tier를 다시 적용한다.
 

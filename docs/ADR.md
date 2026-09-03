@@ -233,3 +233,20 @@ The stored row records issuance-time entitlement. The lookup endpoint does not r
 - Recovery validates the normalized email and phone as one database predicate, returns only `name`, `email`, `birth`, `phone`, and tier as `FREE` or `PREMIUM`, and consumes its proof only after a matching row is found.
 - Invalid, expired, reused, or wrong-purpose proofs return existing status `8703`; a non-matching email-and-phone pair returns existing status `8699` without revealing either field independently.
 - Recovery cannot accept or set tier, purchase, subscription, FCM, or other entitlement data. Android refreshes entitlement through its existing Google Play flow after local-profile restoration.
+
+---
+
+## ADR-015: Retry Failed RTDN Sync and Reconcile Expired Tiers Daily
+
+**Status**: Accepted
+
+**Decision**: Return HTTP 500 when a handled RTDN cannot complete entitlement synchronization, allowing Google Pub/Sub to retry delivery. Add the internal `POST /api/billing/reconcile` endpoint, protected by `CRON_SECRET_TOKEN`, and call it daily at 00:10 KST from the Gabia host. It demotes only rows where `tier = 1` and `valid_date < CURDATE()`.
+
+**Context**: The main server grants expected-number allocations from `tier` only. If an expiry RTDN is lost or its entitlement synchronization fails after the webhook acknowledges success, an expired user can retain Premium tier until a later event. `valid_date` is the backend's existing KST expiry record and provides a bounded daily recovery path.
+
+**Consequences**:
+
+- Normal RTDN delivery still updates entitlement immediately through Google Play provider revalidation.
+- Transient synchronization failures are retried by Pub/Sub rather than acknowledged as complete.
+- The daily reconciliation is idempotent and does not query or alter purchase records, expected-number rows, or FCM state.
+- The endpoint is loopback-only in operation and must not expose `CRON_SECRET_TOKEN` in source, logs, or responses.

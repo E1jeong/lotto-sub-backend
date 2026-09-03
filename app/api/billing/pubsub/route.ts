@@ -63,9 +63,9 @@ async function sendFcmToUser(email: string, title: string, body: string) {
       notification: { title, body },
       data: { type: 'SUBSCRIPTION_UPDATE' },
     });
-    console.log(`[pubsub] FCM 발송 성공: ${email}`);
+    console.log('[pubsub] FCM 발송 성공');
   } catch (error) {
-    console.error(`[pubsub] FCM 발송 실패 (${email}):`, error);
+    console.error('[pubsub] FCM 발송 실패:', error);
   }
 }
 
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { notificationType, purchaseToken } = sub;
-  console.log(`[pubsub] notificationType=${notificationType} token=${purchaseToken.slice(0, 20)}...`);
+  console.log(`[pubsub] notificationType=${notificationType}`);
 
   try {
     switch (notificationType) {
@@ -163,10 +163,9 @@ export async function POST(req: NextRequest) {
       default:
         console.log(`[pubsub] 처리하지 않는 notificationType=${notificationType}`);
     }
-  } catch (e) {
-    console.error('[pubsub] DB 업데이트 오류:', e);
-    // 500 반환 시 Google이 무한 재시도 → 비즈니스 오류는 200으로 ack
-    return NextResponse.json({ ok: true, error: 'DB update failed' }, { status: 200 });
+  } catch {
+    console.error('[pubsub] entitlement synchronization failed');
+    return NextResponse.json({ error: 'Entitlement synchronization failed' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

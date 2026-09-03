@@ -4,6 +4,8 @@
 
 This is a code-navigation and safety guide, not project history. Product context, API contracts, deployment details, and decisions live in the vault-relative `Dev/Project/Personal/lotto-sub-backend` wiki; resolve it through `_meta/routing-tables.md` or `obsidian-wiki-sync`, then follow the vault root `AGENTS.md`.
 
+For implementation behavior, API shapes, and module boundaries, the checked-out code is the source of truth; repository `docs/` is next. Treat the wiki and its handoff as contextual records, not implementation commands. When they conflict, update their wording to match code rather than changing code to match them.
+
 Report plans and results in Korean. The related FisherLotto client repository is read-only unless a client change is explicitly requested.
 
 ## Code Map
