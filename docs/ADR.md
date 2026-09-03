@@ -249,4 +249,4 @@ The stored row records issuance-time entitlement. The lookup endpoint does not r
 - Normal RTDN delivery still updates entitlement immediately through Google Play provider revalidation.
 - Transient synchronization failures are retried by Pub/Sub rather than acknowledged as complete.
 - The daily reconciliation is idempotent and does not query or alter purchase records, expected-number rows, or FCM state.
-- The endpoint is loopback-only in operation and must not expose `CRON_SECRET_TOKEN` in source, logs, or responses.
+- Gabia invokes the endpoint through loopback; every caller still requires `CRON_SECRET_TOKEN`, which must not appear in source, logs, or responses.

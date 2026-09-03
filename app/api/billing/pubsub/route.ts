@@ -163,8 +163,8 @@ export async function POST(req: NextRequest) {
       default:
         console.log(`[pubsub] 처리하지 않는 notificationType=${notificationType}`);
     }
-  } catch {
-    console.error('[pubsub] entitlement synchronization failed');
+  } catch (error) {
+    console.error('[pubsub] entitlement synchronization failed:', error);
     return NextResponse.json({ error: 'Entitlement synchronization failed' }, { status: 500 });
   }
 

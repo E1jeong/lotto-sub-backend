@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
 
     console.log(`[billing-reconcile] demoted=${result.affectedRows}`);
     return NextResponse.json({ ok: true, demoted: result.affectedRows });
-  } catch {
-    console.error('[billing-reconcile] failed');
+  } catch (error) {
+    console.error('[billing-reconcile] failed:', error);
     return NextResponse.json({ error: 'Reconciliation failed' }, { status: 500 });
   }
 }
