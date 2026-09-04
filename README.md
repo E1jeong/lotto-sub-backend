@@ -61,7 +61,6 @@ SMTP_FROM_NAME=어부로또
 | POST | `/api/users/register` | 이메일 인증 후 유저 등록 | `{ name, email, phone, birth, verificationToken }` |
 | POST | `/api/users/recover` | 이메일 인증 기반 계정 복구 | `{ email, phone, verificationToken }` → 최소 프로필 및 `tier: "FREE" | "PREMIUM"` |
 | POST | `/api/users/login` | 로그인 / 유저 조회 | `{ email, phone }` |
-| GET | `/api/users` | 유저 조회 (내부용) | `?email=xxx` |
 | POST | `/api/users/withdraw` | 회원탈퇴 | `{ email, phone }` — hard delete |
 
 ### 이메일 인증

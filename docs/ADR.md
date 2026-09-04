@@ -250,3 +250,20 @@ The stored row records issuance-time entitlement. The lookup endpoint does not r
 - Transient synchronization failures are retried by Pub/Sub rather than acknowledged as complete.
 - The daily reconciliation is idempotent and does not query or alter purchase records, expected-number rows, or FCM state.
 - Gabia invokes the endpoint through loopback; every caller still requires `CRON_SECRET_TOKEN`, which must not appear in source, logs, or responses.
+
+---
+
+## ADR-016: Permanently Remove Unauthenticated Public User Lookup Route
+
+**Status**: Accepted
+
+**Decision**: Remove `app/api/users/route.ts` (`GET /api/users`). Do not expose unauthenticated public user lookup or complete row data.
+
+**Context**: `GET /api/users?email=...` was an early route labeled "internal" in the README, but it had no authentication, session validation, or network restriction. It returned complete user rows (`SELECT *`), exposing PII including name, phone, birth, address, and `fcmToken` (GAP-SEC-01). FisherLotto client code was audited and confirmed to have zero call sites (app login calls `POST /api/users/login`, account recovery calls `POST /api/users/recover`).
+
+**Consequences**:
+
+- The endpoint returns HTTP 404.
+- Resolves GAP-SEC-01 without client coordination or breaking existing app functionality.
+- Any future administrative user lookup must be built as an authenticated internal tool with proper access controls, not a public endpoint.
+
