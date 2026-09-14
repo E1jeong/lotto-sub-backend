@@ -12,7 +12,10 @@ export async function POST(req: NextRequest) {
     }
 
     const [rows] = await pool.execute<RowDataPacket[]>(
-      'SELECT * FROM T_USER_INFO WHERE email = ? AND phone = ? LIMIT 1',
+      `SELECT user_index, email, name, birth, phone, tier, valid_date
+       FROM T_USER_INFO
+       WHERE email = ? AND phone = ?
+       LIMIT 1`,
       [email, phone]
     );
 

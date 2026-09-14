@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { getSubscriptionDetails, type SubscriptionDetails } from '@/lib/googlePlayApi';
+import { ALLOWED_PRODUCT_IDS, getSubscriptionDetails, type SubscriptionDetails } from '@/lib/googlePlayApi';
 import { requestExpectNumberIssuance } from '@/lib/mainServer';
 import type { RowDataPacket } from 'mysql2';
-
-const ALLOWED_PRODUCT_IDS = ['fisherlotto_monthly'];
 
 interface ReceiptRequest {
   orderId: string;

@@ -6,7 +6,7 @@ import type { Pool } from 'mysql2/promise';
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.FIREBASE_CLIENT_EMAIL,
-    // Vercel 환경변수에서 줄바꿈(\n) 오류를 방지하기 위한 필수 처리 (firebaseAdmin.ts와 동일)
+    // 환경변수에 이스케이프된 줄바꿈(\\n)이 들어와도 PEM이 깨지지 않게 복원한다.
     private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   },
   scopes: ['https://www.googleapis.com/auth/androidpublisher'],
@@ -15,6 +15,8 @@ const auth = new google.auth.GoogleAuth({
 const androidPublisher = google.androidpublisher({ version: 'v3', auth });
 
 const packageName = process.env.GOOGLE_PLAY_PACKAGE_NAME || 'com.queentech.fisherlotto';
+
+export const ALLOWED_PRODUCT_IDS = ['fisherlotto_monthly'];
 
 export interface SubscriptionDetails {
   expiryTimeMillis: number | null;
@@ -84,7 +86,7 @@ export async function syncUserEntitlementByToken(
   }
 
   const details = await getSubscriptionDetails(purchaseToken);
-  if (details.isEntitled && details.productId === 'fisherlotto_monthly') {
+  if (details.isEntitled && ALLOWED_PRODUCT_IDS.includes(details.productId ?? '')) {
     await pool.execute(
       'UPDATE T_USER_INFO SET tier = 1, valid_date = DATE(FROM_UNIXTIME(? / 1000)) WHERE email = ?',
       [details.expiryTimeMillis, email],
@@ -112,7 +114,7 @@ export async function syncUserEntitlementByToken(
 
   return {
     email,
-    isEntitled: details.isEntitled && details.productId === 'fisherlotto_monthly',
+    isEntitled: details.isEntitled && ALLOWED_PRODUCT_IDS.includes(details.productId ?? ''),
     subscriptionState: details.subscriptionState,
   };
 }

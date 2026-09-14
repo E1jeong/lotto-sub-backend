@@ -11,9 +11,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ status: '8677' });
     }
 
+    const columns = 'lotto_round, pick_date, no1, no2, no3, no4, no5, no6, bonus, `1_count`, `1_money`, `2_count`, `2_money`, `3_count`, `3_money`, `4_count`, `4_money`, `5_count`, `5_money`, full_text';
     const query = Number(round) === 0
-      ? 'SELECT * FROM T_WINNER_NUM ORDER BY lotto_round DESC LIMIT 1'
-      : 'SELECT * FROM T_WINNER_NUM WHERE lotto_round = ? LIMIT 1';
+      ? `SELECT ${columns} FROM T_WINNER_NUM ORDER BY lotto_round DESC LIMIT 1`
+      : `SELECT ${columns} FROM T_WINNER_NUM WHERE lotto_round = ? LIMIT 1`;
     const params = Number(round) === 0 ? [] : [round];
 
     const [rows] = await pool.execute<RowDataPacket[]>(query, params);

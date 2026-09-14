@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSubscriptionDetails } from '@/lib/googlePlayApi';
-
-const ALLOWED_PRODUCT_IDS = ['fisherlotto_monthly'];
+import { ALLOWED_PRODUCT_IDS, getSubscriptionDetails } from '@/lib/googlePlayApi';
 
 interface SubscriptionQueryRequest {
   purchaseToken: string;
