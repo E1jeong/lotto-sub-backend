@@ -38,7 +38,8 @@ export async function requestExpectNumberIssuance(
 }
 
 // 회원가입 성공 직후 호출해 신규 가입 사용자의 초기 무료 예상번호(10개) 발급을 요청한다. (1022)
-// 메인 서버는 DB 저장은 건너뛰고 무료 번호 발급만 수행한다.
+// T_USER_INFO는 서브백엔드가 이미 저장했으며, 소유자 확인 계약상 메인 서버가 공유 T_EXPECT_PICK에 번호를 생성·저장한다(소스/런타임 미검증).
+// 서브백엔드는 응답 번호를 사용하거나 저장하지 않는다.
 // main-server가 불가하거나 실패해도 이미 완료된 회원가입 성공에는 영향을 주지 않는다.
 export async function requestInitialExpectNumberIssuance(params: {
   name: string;

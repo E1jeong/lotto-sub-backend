@@ -55,8 +55,9 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
-    // 회원가입 성공 직후 무료 사용자에 대한 초기 예상번호(10개) 발급을 위해 main-server 1022를 호출한다.
-    // 메인 서버는 DB에 값을 쓰지 않고 무료 번호만 발급하며, 호출 실패가 가입 성공 응답을 실패로 덮어써서는 안 된다.
+    // T_USER_INFO는 이미 이 라우트가 저장했으며, 1022의 남은 역할은 초기 무료 번호 할당이다.
+    // 소유자 확인 계약상 메인 서버가 공유 T_EXPECT_PICK에 저장하지만 소스/런타임은 미검증이다.
+    // 이 라우트는 번호를 저장하지 않으며 호출 실패를 가입 성공과 격리한다.
     try {
       await requestInitialExpectNumberIssuance({ name, email, phone, birth });
     } catch (e) {
