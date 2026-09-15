@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { ALLOWED_PRODUCT_IDS, getSubscriptionDetails, type SubscriptionDetails } from '@/lib/googlePlayApi';
+import { ALLOWED_PRODUCT_IDS, getSubscriptionDetails, playAccountIdForEmail, type SubscriptionDetails } from '@/lib/googlePlayApi';
 import { requestExpectNumberIssuance } from '@/lib/mainServer';
 import type { RowDataPacket } from 'mysql2';
 
@@ -81,6 +81,13 @@ export async function POST(req: NextRequest) {
     if (!providerOrderId || providerPurchaseTime === null) {
       return NextResponse.json(
         { success: false, message: 'Google Play 주문 정보를 확인할 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (subscriptionDetails.obfuscatedAccountId !== playAccountIdForEmail(email)) {
+      return NextResponse.json(
+        { success: false, message: '이 결제에 연결된 계정과 요청 계정이 다릅니다.' },
         { status: 400 }
       );
     }

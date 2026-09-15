@@ -1,4 +1,5 @@
 // lib/googlePlayApi.ts
+import { createHash } from 'crypto';
 import { google } from 'googleapis';
 import type { Pool } from 'mysql2/promise';
 
@@ -18,6 +19,10 @@ const packageName = process.env.GOOGLE_PLAY_PACKAGE_NAME || 'com.queentech.fishe
 
 export const ALLOWED_PRODUCT_IDS = ['fisherlotto_monthly'];
 
+export function playAccountIdForEmail(email: string): string {
+  return createHash('sha256').update(email, 'utf8').digest('hex');
+}
+
 export interface SubscriptionDetails {
   expiryTimeMillis: number | null;
   productId: string | null;
@@ -28,6 +33,7 @@ export interface SubscriptionDetails {
   autoRenewing: boolean;
   cancelAtPeriodEnd: boolean;
   isOnHold: boolean;
+  obfuscatedAccountId: string | null;
 }
 
 export async function getSubscriptionDetails(
@@ -60,6 +66,8 @@ export async function getSubscriptionDetails(
       && (lineItem?.autoRenewingPlan !== undefined),
     cancelAtPeriodEnd: subscriptionState === 'SUBSCRIPTION_STATE_CANCELED',
     isOnHold: subscriptionState === 'SUBSCRIPTION_STATE_ON_HOLD',
+    obfuscatedAccountId:
+      subscription.externalAccountIdentifiers?.obfuscatedExternalAccountId ?? null,
   };
 }
 
