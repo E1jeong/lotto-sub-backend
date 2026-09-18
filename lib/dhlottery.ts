@@ -104,46 +104,12 @@ function formatDate(rawDate: string): string {
 }
 
 /**
- * 동행복권 신규 API에서 특정 회차 당첨정보를 가져와 T_WINNER_NUM 규격으로 변환합니다.
- * 집계가 아직 완료되지 않았거나(1등 당첨금/인원 <= 0) 데이터가 없으면 null을 반환합니다.
- *
- * [추후 DB 저장 시 참고]
- * ```typescript
- * await pool.execute(
- *   `INSERT INTO T_WINNER_NUM (
- *     lotto_round, pick_date, no1, no2, no3, no4, no5, no6, bonus,
- *     \`1_count\`, \`1_money\`, \`2_count\`, \`2_money\`,
- *     \`3_count\`, \`3_money\`, \`4_count\`, \`4_money\`,
- *     \`5_count\`, \`5_money\`, full_text
- *   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
- *   ON DUPLICATE KEY UPDATE
- *     pick_date = VALUES(pick_date),
- *     no1 = VALUES(no1), no2 = VALUES(no2), no3 = VALUES(no3),
- *     no4 = VALUES(no4), no5 = VALUES(no5), no6 = VALUES(no6),
- *     bonus = VALUES(bonus),
- *     \`1_count\` = VALUES(\`1_count\`), \`1_money\` = VALUES(\`1_money\`),
- *     \`2_count\` = VALUES(\`2_count\`), \`2_money\` = VALUES(\`2_money\`),
- *     \`3_count\` = VALUES(\`3_count\`), \`3_money\` = VALUES(\`3_money\`),
- *     \`4_count\` = VALUES(\`4_count\`), \`4_money\` = VALUES(\`4_money\`),
- *     \`5_count\` = VALUES(\`5_count\`), \`5_money\` = VALUES(\`5_money\`),
- *     full_text = VALUES(full_text)`,
- *   [
- *     data.lottoRound, data.pickDate,
- *     data.no1, data.no2, data.no3, data.no4, data.no5, data.no6, data.bonus,
- *     data.firstCount, data.firstMoney,
- *     data.secondCount, data.secondMoney,
- *     data.thirdCount, data.thirdMoney,
- *     data.fourthCount, data.fourthMoney,
- *     data.fifthCount, data.fifthMoney,
- *     data.fullText
- *   ]
- * );
- * ```
+ * 동행복권의 최신 당첨정보를 T_WINNER_NUM 규격으로 변환합니다.
+ * 집계가 아직 완료되지 않았거나 데이터가 없으면 null을 반환합니다.
  */
-export async function fetchDhLotteryWinningNumber(round: number = 0): Promise<WinnerNumberRecord | null> {
-  // round가 0이면 빈 문자열을 전달하여 동행복권의 최신 회차 정보를 조회합니다.
-  const roundParam = round > 0 ? String(round) : '';
-  const url = `${DHLOTTERY_API_URL}?srchLtEpsd=${roundParam}`;
+export async function fetchLatestDhLotteryWinningNumber(): Promise<WinnerNumberRecord | null> {
+  // 동행복권 API는 srchLtEpsd를 빈 값으로 전달할 때 최신 회차를 반환합니다.
+  const url = `${DHLOTTERY_API_URL}?srchLtEpsd=`;
 
   const response = await fetch(url, {
     headers: {
@@ -166,6 +132,10 @@ export async function fetchDhLotteryWinningNumber(round: number = 0): Promise<Wi
 
   const item = list[0];
 
+  if (!Number.isInteger(item.ltEpsd) || item.ltEpsd <= 0 || !/^\d{8}$/.test(item.ltRflYmd)) {
+    throw new Error('동행복권 API 회차 또는 추첨일 형식이 올바르지 않습니다.');
+  }
+
   // 당첨 번호 유효성 검사 (1~45 범위)
   const hasValidNumbers = [
     item.tm1WnNo, item.tm2WnNo, item.tm3WnNo,
@@ -174,13 +144,37 @@ export async function fetchDhLotteryWinningNumber(round: number = 0): Promise<Wi
   ].every(n => typeof n === 'number' && n >= 1 && n <= 45);
 
   if (!hasValidNumbers) {
-    return null;
+    throw new Error('동행복권 API 당첨번호가 올바르지 않습니다.');
+  }
+
+  const numbers = [
+    item.tm1WnNo, item.tm2WnNo, item.tm3WnNo,
+    item.tm4WnNo, item.tm5WnNo, item.tm6WnNo,
+    item.bnsWnNo,
+  ];
+  if (new Set(numbers).size !== numbers.length) {
+    throw new Error('동행복권 API 당첨번호에 중복이 있습니다.');
+  }
+
+  const winnerCounts = [
+    item.rnk1WnNope, item.rnk2WnNope, item.rnk3WnNope,
+    item.rnk4WnNope, item.rnk5WnNope, item.sumWnNope,
+  ];
+  const prizeAmounts = [
+    item.rnk1WnAmt, item.rnk2WnAmt, item.rnk3WnAmt,
+    item.rnk4WnAmt, item.rnk5WnAmt, item.rlvtEpsdSumNtslAmt,
+  ];
+  if (!winnerCounts.every((value) => Number.isInteger(value) && value >= 0)
+    || !prizeAmounts.every((value) => Number.isFinite(value) && value >= 0)) {
+    throw new Error('동행복권 API 당첨 집계가 올바르지 않습니다.');
   }
 
   // 집계 완료 검증:
   // 1등 당첨자가 없는 회차(이월)의 경우 rnk1WnNope/rnk1WnAmt가 0이 될 수 있으므로,
   // 고정 당첨금인 5등(rnk5WnNope) 및 총 당첨자 수(sumWnNope), 판매액(rlvtEpsdSumNtslAmt)이 0보다 큰지로 집계 완료를 판단합니다.
-  const isAggregated = (item.sumWnNope && item.sumWnNope > 0) || (item.rnk5WnNope && item.rnk5WnNope > 0);
+  const isAggregated = item.sumWnNope > 0
+    && item.rnk5WnNope > 0
+    && item.rlvtEpsdSumNtslAmt > 0;
   if (!isAggregated) {
     return null;
   }

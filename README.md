@@ -87,7 +87,7 @@ SMTP_FROM_NAME=어부로또
 | 메서드 | 경로 | 설명 | 비고 |
 |--------|------|------|------|
 | GET | `/api/lotto/winning` | 당첨 번호 조회 (DB 기반) | `?round=1100` (0=최신) |
-| GET | `/api/lotto/fetch-winning` | 동행복권 신규 API 실시간 당첨 정보 조회 및 검증 | `?round=1100` (DB INSERT 미수행, ADR-019) |
+| POST | `/api/lotto/fetch-winning` | 동행복권 최신 당첨 정보 수집 및 DB 저장 | `Authorization: Bearer CRON_SECRET_TOKEN`, `{ targetDate: "YYYY-MM-DD" }` (서버 내부용) |
 | POST | `/api/lotto/expect` | 예상 번호 조회 | `{ email, phone }` → 무료 발급행 10개, 유료 발급행 30개 |
 | GET | `/api/lotto/stats` | 회차별 등수 조합 통계 조회 | `?round=1100` (0=최신) |
 
@@ -107,6 +107,8 @@ SMTP_FROM_NAME=어부로또
 | POST | `/api/billing/subscription` | 구독 상태 조회 | `{ purchaseToken }` → `{ success, isEntitled, ... }` |
 | POST | `/api/billing/pubsub` | RTDN Pub/Sub 수신 웹훅 | `?token=PUBSUB_SECRET_TOKEN` → `{ ok: true }` |
 | POST | `/api/billing/reconcile` | 한국 표준시(KST) 만료 프리미엄 등급 정리 | `Authorization: Bearer CRON_SECRET_TOKEN` → `{ ok: true, demoted }` |
+
+당첨번호 수집은 운영 서버 cron이 매주 토요일 21:30 KST에 `scripts/run-winning-number-fetch.sh`를 실행합니다. 동행복권에서 해당 추첨일의 신규 회차를 아직 반환하지 않거나 요청·DB 저장이 실패하면 10분 간격으로 재시도하고, 신규 회차 저장 또는 동일 데이터의 기존 저장을 확인하면 종료합니다.
 
 `/api/lotto/expect`는 `T_EXPECT_PICK.pick_expect`의 기본 10개를 항상 반환합니다. 무료 발급행의 `pay_expect` 값은 `$$`이며, 유료 JSON이 저장된 경우에만 추가 20개를 뒤에 합쳐 기존 `{ status, count, lotto }` 형식으로 30개를 반환합니다. 발급 후 주중에 구독이 취소되거나 만료되어도 저장된 유료 JSON은 그대로 제공하며, 다음 주차 발급 때 메인 서버가 최신 등급을 다시 적용합니다.
 
