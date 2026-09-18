@@ -86,7 +86,8 @@ SMTP_FROM_NAME=어부로또
 
 | 메서드 | 경로 | 설명 | 비고 |
 |--------|------|------|------|
-| GET | `/api/lotto/winning` | 당첨 번호 조회 | `?round=1100` (0=최신) |
+| GET | `/api/lotto/winning` | 당첨 번호 조회 (DB 기반) | `?round=1100` (0=최신) |
+| GET | `/api/lotto/fetch-winning` | 동행복권 신규 API 실시간 당첨 정보 조회 및 검증 | `?round=1100` (DB INSERT 미수행, ADR-019) |
 | POST | `/api/lotto/expect` | 예상 번호 조회 | `{ email, phone }` → 무료 발급행 10개, 유료 발급행 30개 |
 | GET | `/api/lotto/stats` | 회차별 등수 조합 통계 조회 | `?round=1100` (0=최신) |
 
