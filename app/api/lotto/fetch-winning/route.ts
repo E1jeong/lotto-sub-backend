@@ -49,7 +49,7 @@ async function findExistingRecord(connection: PoolConnection, lottoRound: number
        \`3_count\` AS thirdCount, \`3_money\` AS thirdMoney,
        \`4_count\` AS fourthCount, \`4_money\` AS fourthMoney,
        \`5_count\` AS fifthCount, \`5_money\` AS fifthMoney,
-       full_text AS fullText
+       full_text AS \`fullText\`
      FROM T_WINNER_NUM
      WHERE lotto_round = ?
      LIMIT 1`,
