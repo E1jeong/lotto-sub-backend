@@ -103,7 +103,7 @@ SMTP_FROM_NAME=어부로또
 
 | 메서드 | 경로 | 설명 | 비고 |
 |--------|------|------|------|
-| POST | `/api/billing/receipt` | Google Play 영수증 검증 및 저장 | `{ orderId, productId, purchaseToken, email }` → `{ success, message, ... }` |
+| POST | `/api/billing/receipt` | Google Play 영수증 검증 및 저장 | `{ orderId, productId, purchaseToken, email }` → `{ success, message, ... }`. Play `obfuscatedExternalAccountId`가 요청 이메일 SHA-256 hex와 같아야 함 (ADR-018) |
 | POST | `/api/billing/subscription` | 구독 상태 조회 | `{ purchaseToken }` → `{ success, isEntitled, ... }` |
 | POST | `/api/billing/pubsub` | RTDN Pub/Sub 수신 웹훅 | `?token=PUBSUB_SECRET_TOKEN` → `{ ok: true }` |
 | POST | `/api/billing/reconcile` | 한국 표준시(KST) 만료 프리미엄 등급 정리 | `Authorization: Bearer CRON_SECRET_TOKEN` → `{ ok: true, demoted }` |
@@ -112,7 +112,7 @@ SMTP_FROM_NAME=어부로또
 
 `/api/lotto/expect`는 `T_EXPECT_PICK.pick_expect`의 기본 10개를 항상 반환합니다. 무료 발급행의 `pay_expect` 값은 `$$`이며, 유료 JSON이 저장된 경우에만 추가 20개를 뒤에 합쳐 기존 `{ status, count, lotto }` 형식으로 30개를 반환합니다. 발급 후 주중에 구독이 취소되거나 만료되어도 저장된 유료 JSON은 그대로 제공하며, 다음 주차 발급 때 메인 서버가 최신 등급을 다시 적용합니다.
 
-`/api/users/register`는 사용자 등록(`T_USER_INFO`) 및 인증 증명 소비가 성공한 직후, 기존 메인 서버(`http://127.0.0.1:10907/lotto/1022`, 환경변수 `MAIN_SERVER_REGISTER_URL`로 주소 변경 가능)를 호출합니다(`{ name, email, phone, birth }`). `T_USER_INFO`는 서브백엔드가 이미 저장했으므로 1022의 남은 역할은 두 번째 사용자 저장이 아니라 초기 무료 10세트의 공유 `T_EXPECT_PICK.pick_expect` 할당입니다. 소유자 확인 계약상 메인 서버가 이를 생성·저장하지만, 메인 서버 소스와 런타임은 아직 검증되지 않았습니다. 서브백엔드는 응답 번호를 사용하거나 저장하지 않고 HTTP 성공과 `{ status: "8200" }`만 확인하며, 호출 실패는 회원가입 성공 응답 `{ status: "8200" }`에 영향을 주지 않습니다(5초 타임아웃 및 격리된 `try/catch`).
+`/api/users/register`는 사용자 등록(`T_USER_INFO`) 및 인증 증명 소비가 성공한 직후, 기존 메인 서버(`http://127.0.0.1:10907/lotto/1022`, 환경변수 `MAIN_SERVER_REGISTER_URL`로 주소 변경 가능)를 호출합니다(`{ name, email, phone, birth }`). `T_USER_INFO`는 서브백엔드가 이미 저장했으므로 1022의 남은 역할은 두 번째 사용자 저장이 아니라 초기 무료 10세트의 공유 `T_EXPECT_PICK.pick_expect` 할당입니다. 소유자 확인 계약상 메인 서버가 이를 생성·저장합니다. 2026-09-19 회원가입에서 10세트 할당이 DB로 확인됐고, 메인 서버 소스 검사는 하지 않았습니다. 서브백엔드는 응답 번호를 사용하거나 저장하지 않고 HTTP 성공과 `{ status: "8200" }`만 확인하며, 호출 실패는 회원가입 성공 응답 `{ status: "8200" }`에 영향을 주지 않습니다(5초 타임아웃 및 격리된 `try/catch`).
 
 `/api/billing/receipt`는 Google Play `subscriptionsv2`로 자격을 검증하고, 트랜잭션 커밋으로 신규 구매가 확인된 경우(`isNewPurchase`)에만 같은 가비아 가상 머신 내부의 기존 메인 서버(`http://127.0.0.1:10907/lotto/1077`, 환경변수 `MAIN_SERVER_REISSUE_URL`로 주소 변경 가능)를 호출해 이번 주차의 유료 20개(`pay_expect`) 추가 발급을 요청합니다(`{ email, phone }`). 메인 서버 호출 실패는 이미 커밋된 등급 갱신이나 영수증 응답에 영향을 주지 않습니다.
 
