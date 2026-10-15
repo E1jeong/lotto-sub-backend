@@ -11,7 +11,7 @@ Report plans and results in Korean; keep the owner-facing `README.md` in Korean,
 | Module | Responsibility | Orient first | Local guide |
 | --- | --- | --- | --- |
 | `app/api/` | Next.js route handlers for users, email, billing, lotto, and FCM | `app/api/` | None |
-| `lib/` | Database, Donghang Lottery, Google Play, email, main-server, and verification-store adapters | `lib/` | None |
+| `lib/` | Database, Donghang Lottery, Google Play, Firebase Admin (FCM), email, main-server, and verification-store adapters | `lib/` | None |
 | `scripts/` | Gabia host cron entrypoints for tier reconciliation and winning-number ingestion | `scripts/` | None |
 | `docs/` | Version-bound database migration execution | `docs/MIGRATION.md` | None |
 
