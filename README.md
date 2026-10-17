@@ -5,7 +5,7 @@ Next.js App Router 기반 API 서버로, 가비아 클라우드에서 PM2로 운
 
 ## 문서
 
-제품 요구사항·아키텍처·ADR은 Obsidian의 `Dev/Project/Personal/lotto-sub-backend` 위키에서 관리합니다. 위치는 [AGENTS.md](AGENTS.md)를 따라 확인합니다. [DB 마이그레이션 문서](docs/MIGRATION.md)는 코드 버전에 대응하는 DDL과 적용 전후 검증 절차를 유지합니다. 기존 PRD·아키텍처·ADR 문서는 위키에 통합한 뒤 삭제했으며, ADR 번호는 위키의 결정 기록을 가리킵니다.
+제품 요구사항·아키텍처·ADR·DB 마이그레이션 절차는 Obsidian의 `Dev/Project/Personal/lotto-sub-backend` 위키에서 관리합니다. 위치는 [AGENTS.md](AGENTS.md)를 따라 확인합니다. 기존 PRD·아키텍처·ADR·마이그레이션 문서는 위키에 통합한 뒤 삭제했으며, ADR 번호는 위키의 결정 기록을 가리킵니다.
 
 ## 기술 스택
 
@@ -150,4 +150,4 @@ SMTP_FROM_NAME=어부로또
 - `T_EXPECT_PICK` — 예상번호 발급행 (`pick_expect`: 공통 10개 JSON, `pay_expect`: 무료는 `$$`, 유료 발급 시 추가 20개 JSON; 기존 `pick_count` 삭제)
 - `T_RESULT_COMBI` — 로또 회차별 등수(1~5등) 당첨 조합 개수 및 전체 조합 개수(`combi_count`)
 
-자세한 내용은 [DB 마이그레이션 문서](docs/MIGRATION.md)를 참고하세요.
+스키마 변경 DDL과 적용 전후 검증 절차는 위키의 `operations/db-migrations.md`를 참고하세요.

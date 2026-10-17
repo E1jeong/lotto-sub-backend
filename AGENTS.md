@@ -13,7 +13,6 @@ Report plans and results in Korean; keep the owner-facing `README.md` in Korean,
 | `app/api/` | Next.js route handlers for users, email, billing, lotto, and FCM | `app/api/` | None |
 | `lib/` | Database, Donghang Lottery, Google Play, Firebase Admin (FCM), email, main-server, and verification-store adapters | `lib/` | None |
 | `scripts/` | Gabia host cron entrypoints for tier reconciliation and winning-number ingestion | `scripts/` | None |
-| `docs/` | Version-bound database migration execution | `docs/MIGRATION.md` | None |
 
 ## Change Gates
 
@@ -22,7 +21,7 @@ Report plans and results in Korean; keep the owner-facing `README.md` in Korean,
 - Preserve app-facing API status codes and JSON shapes unless the coordinated FisherLotto client contract changes.
 - Return only safe client responses. Log operational failures with route and outcome so Gabia/PM2 debugging stays possible; never write credentials, keys, tokens, raw database errors, or stack traces to responses or logs.
 - Keep application date calculations and stored date strings in KST; convert external UTC values only at integration boundaries.
-- Never run destructive database operations. Document coordinated schema execution in `docs/MIGRATION.md`; record decisions and rationale in the wiki's `technical/design-decisions.md`.
+- Never run destructive database operations. Document coordinated schema execution (DDL, preconditions, rollout checks) in the wiki's `operations/db-migrations.md`; record decisions and rationale in the wiki's `technical/design-decisions.md`.
 
 ## Verify
 
