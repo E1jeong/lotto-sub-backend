@@ -47,3 +47,6 @@ next-env.d.ts
 .env*.local
 .idea
 reference
+
+# graphify local cache (disposable)
+graphify-out/
