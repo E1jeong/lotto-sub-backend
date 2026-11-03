@@ -2,7 +2,7 @@
 
 ## Context
 
-This is a code-navigation and safety guide, not project history. Product context, API contracts, deployment details, and decisions live in the vault-relative `Dev/Project/Personal/lotto-sub-backend` wiki; resolve it through `_meta/routing-tables.md` or `obsidian-wiki-sync`, then follow the vault root `AGENTS.md`.
+This is a code-navigation and safety guide, not project history. Product context, API contracts, deployment details, and decisions live in the vault-relative `Dev/Project/Personal/lotto-sub-backend` wiki; resolve it through `_meta/routing-tables.md` or `obsidian-wiki-sync`.
 
 Keep the owner-facing `README.md` in Korean, preserving code identifiers. The related FisherLotto client repository is read-only unless a client change is explicitly requested.
 
